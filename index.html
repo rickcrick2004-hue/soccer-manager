@@ -152,7 +152,7 @@
                 <i class="fa-solid fa-file-csv mr-2"></i>CSV一括追加
                 <input type="file" accept=".csv" @change="importStudentsCSV" class="hidden">
               </label>
-              <button @click="showAddStudentModal = true" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>手動追加</button>
+              <button @click="openAddStudentModal" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>手動追加</button>
               <button @click="updateAcademicYear" class="btn-warning"><i class="fa-solid fa-arrow-up-right-dots mr-2"></i>年度更新を実行</button>
             </div>
           </div>
@@ -183,40 +183,46 @@
                     <span v-else class="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">現役</span>
                   </td>
                   <td class="p-4 text-right">
-                    <button @click="deleteStudent(s.id)" class="text-red-400 hover:text-red-300 text-sm px-2 py-1 rounded bg-red-400/10 hover:bg-red-400/20 transition"><i class="fa-solid fa-trash"></i></button>
+                    <div class="flex justify-end gap-2">
+                      <button @click="editStudent(s)" title="編集" class="text-blue-400 hover:text-blue-300 text-sm px-2 py-1 rounded bg-blue-400/10 hover:bg-blue-400/20 transition"><i class="fa-solid fa-pen"></i></button>
+                      <button @click="deleteStudent(s.id)" title="削除" class="text-red-400 hover:text-red-300 text-sm px-2 py-1 rounded bg-red-400/10 hover:bg-red-400/20 transition"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
           
-          <!-- 手動追加モーダル -->
-          <div v-if="showAddStudentModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm fade-in">
+          <!-- 生徒追加・編集モーダル -->
+          <div v-if="showStudentModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm fade-in">
             <div class="glass-panel p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl border border-slate-600">
-              <h3 class="text-xl font-bold text-white mb-6"><i class="fa-solid fa-user-plus mr-2 text-emerald-400"></i>生徒を手動追加</h3>
+              <h3 class="text-xl font-bold text-white mb-6 flex items-center">
+                <i class="fa-solid text-emerald-400 mr-2" :class="studentForm.id ? 'fa-user-pen' : 'fa-user-plus'"></i>
+                <span>{{ studentForm.id ? '生徒情報を編集' : '生徒を手動追加' }}</span>
+              </h3>
               <div class="space-y-4 mb-8">
                 <div>
                   <label class="form-label">名前 <span class="text-red-400">*</span></label>
-                  <input type="text" v-model="newStudent.name" placeholder="山田 太郎" class="form-input">
+                  <input type="text" v-model="studentForm.name" placeholder="山田 太郎" class="form-input">
                 </div>
                 <div class="grid grid-cols-3 gap-4">
                   <div>
                     <label class="form-label">学年</label>
-                    <input type="number" min="1" max="6" v-model="newStudent.grade" class="form-input">
+                    <input type="number" min="1" max="6" v-model="studentForm.grade" class="form-input">
                   </div>
                   <div>
                     <label class="form-label">背番号</label>
-                    <input type="text" v-model="newStudent.number" placeholder="10" class="form-input">
+                    <input type="text" v-model="studentForm.number" placeholder="10" class="form-input">
                   </div>
                   <div>
                     <label class="form-label">Pos</label>
-                    <input type="text" v-model="newStudent.position" placeholder="FW" class="form-input">
+                    <input type="text" v-model="studentForm.position" placeholder="FW" class="form-input">
                   </div>
                 </div>
               </div>
               <div class="flex justify-end gap-3">
-                <button @click="showAddStudentModal = false" class="btn-secondary">キャンセル</button>
-                <button @click="addStudent" class="btn-primary shadow-emerald-500/30 shadow-lg px-8">追加</button>
+                <button @click="showStudentModal = false" class="btn-secondary">キャンセル</button>
+                <button @click="saveStudent" class="btn-primary shadow-emerald-500/30 shadow-lg px-8">{{ studentForm.id ? '更新' : '追加' }}</button>
               </div>
             </div>
           </div>
@@ -598,8 +604,8 @@
         const isEditingPractice = ref(false);
         const isEditingMatch = ref(false);
         const newMenuName = ref('');
-        const showAddStudentModal = ref(false);
-        const newStudent = reactive({ name: '', grade: 1, number: '', position: '' });
+        const showStudentModal = ref(false);
+        const studentForm = reactive({ id: null, name: '', grade: 1, number: '', position: '', isGraduated: false });
         
         // --- Firebase Config State ---
         const customFirebaseEnabled = ref(false);
@@ -857,26 +863,37 @@
           reader.readAsText(file); // BOM付きUTF-8も自動的に解釈される
         };
 
-        const addStudent = async () => {
-          if (!newStudent.name) { alert('名前は必須です'); return; }
+        const openAddStudentModal = () => {
+          Object.assign(studentForm, { id: null, name: '', grade: 1, number: '', position: '', isGraduated: false });
+          showStudentModal.value = true;
+        };
+
+        const editStudent = (s) => {
+          Object.assign(studentForm, JSON.parse(JSON.stringify(s)));
+          showStudentModal.value = true;
+        };
+
+        const saveStudent = async () => {
+          if (!studentForm.name) { alert('名前は必須です'); return; }
           loadingData.value = true;
           
-          const sId = crypto.randomUUID();
-          const student = {
-            id: sId,
-            name: newStudent.name.trim(),
-            grade: newStudent.grade,
-            number: newStudent.number.trim(),
-            position: newStudent.position.trim(),
-            isGraduated: false,
-            createdAt: Date.now()
-          };
+          const isNew = !studentForm.id;
+          if (isNew) {
+            studentForm.id = crypto.randomUUID();
+            studentForm.createdAt = Date.now();
+          }
           
-          students.value.push(student);
-          showAddStudentModal.value = false;
-          Object.assign(newStudent, { name: '', grade: 1, number: '', position: '' });
+          const dataToSave = JSON.parse(JSON.stringify(studentForm));
           
-          await saveToCloud('students', sId, student);
+          if (isNew) {
+            students.value.push(dataToSave);
+          } else {
+            const idx = students.value.findIndex(s => s.id === dataToSave.id);
+            if(idx !== -1) students.value[idx] = dataToSave;
+          }
+          
+          showStudentModal.value = false;
+          await saveToCloud('students', dataToSave.id, dataToSave);
           loadingData.value = false;
         };
 
@@ -1149,7 +1166,7 @@
         return {
           version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
           students, activeStudents, obStudents, displayStudents, studentTab, getStudentName,
-          downloadCSVTemplate, importStudentsCSV, showAddStudentModal, newStudent, addStudent, deleteStudent, updateAcademicYear,
+          downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
           getWeekday,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount,
           matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, addOpponentPlayer, removeOpponentPlayer,
