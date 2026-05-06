@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.4</title>
+  <title>Soccer Team Manager v1.5</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -478,11 +478,17 @@
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               <!-- Our Team & Formation -->
-              <div class="border border-slate-700 rounded-xl p-5 bg-slate-900/30">
-                <h3 class="text-emerald-400 font-bold mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-shield-halved mr-2"></i>フォーメーション＆出場選手</h3>
+              <div class="border border-slate-700 rounded-xl p-5 bg-slate-900/30 flex flex-col">
+                <h3 class="text-emerald-400 font-bold mb-4 border-b border-slate-700 pb-2 flex justify-between items-center">
+                  <span><i class="fa-solid fa-shield-halved mr-2"></i>フォーメーション＆出場選手</span>
+                  <div class="flex gap-2">
+                    <button @click="saveCurrentLineup" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded transition"><i class="fa-solid fa-floppy-disk mr-1"></i>保存</button>
+                    <button @click="showLoadLineupModal = true" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition border border-slate-600"><i class="fa-solid fa-folder-open mr-1"></i>読込</button>
+                  </div>
+                </h3>
                 <div class="mb-6 flex gap-4 items-center">
                   <label class="form-label mb-0">システム</label>
-                  <select v-model="matchForm.formation" class="form-input w-48" @change="handleFormationChange">
+                  <select v-model="matchForm.formation" class="form-input w-48">
                     <option value="4-4-2">4-4-2</option>
                     <option value="4-2-3-1">4-2-3-1</option>
                     <option value="4-3-3">4-3-3</option>
@@ -521,7 +527,7 @@
                   <input type="text" v-model="matchForm.customFormation" class="form-input" placeholder="例: 4-4-2 (ダイヤモンド)">
                 </div>
 
-                <div>
+                <div class="mt-auto">
                   <label class="form-label flex justify-between items-center">
                     <span>出場選手・個別評価</span>
                     <button @click="fillActiveStudentsToMatch" class="text-xs bg-emerald-600/20 text-emerald-400 px-2 py-1 rounded hover:bg-emerald-600/40 transition">現役全員をリストに追加</button>
@@ -545,23 +551,73 @@
               </div>
 
               <!-- Opponent Team -->
-              <div class="border border-slate-700 rounded-xl p-5 bg-slate-900/30">
+              <div class="border border-slate-700 rounded-xl p-5 bg-slate-900/30 flex flex-col">
                 <h3 class="text-amber-400 font-bold mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-crosshairs mr-2"></i>相手チーム情報</h3>
-                <div class="mb-4">
-                  <label class="form-label">フォーメーション</label>
-                  <input type="text" v-model="matchForm.opponentFormation" class="form-input" placeholder="例: 3-5-2">
+                <div class="mb-6 flex gap-4 items-center">
+                  <label class="form-label mb-0">システム</label>
+                  <select v-model="matchForm.opponentFormation" class="form-input w-48">
+                    <option value="4-4-2">4-4-2</option>
+                    <option value="4-2-3-1">4-2-3-1</option>
+                    <option value="4-3-3">4-3-3</option>
+                    <option value="3-5-2">3-5-2</option>
+                    <option value="3-4-3">3-4-3</option>
+                    <option value="フリー">フリー (手動入力)</option>
+                  </select>
                 </div>
-                <div>
-                  <label class="form-label">要注意選手・特徴</label>
-                  <div class="space-y-2 mb-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                     <div v-for="(p, index) in matchForm.opponentPlayers" :key="index" class="flex gap-2 items-start">
-                        <input type="text" v-model="p.number" placeholder="背番号" class="w-16 form-input text-xs py-1 px-2">
-                        <input type="text" v-model="p.position" placeholder="Pos" class="w-16 form-input text-xs py-1 px-2">
-                        <input type="text" v-model="p.features" placeholder="特徴 (足が速い, 左利き等)" class="flex-1 form-input text-xs py-1 px-2">
-                        <button @click="removeOpponentPlayer(index)" class="text-red-400 hover:text-red-300 p-1"><i class="fa-solid fa-xmark"></i></button>
+
+                <!-- 相手ピッチUI -->
+                <div v-if="matchForm.opponentFormation !== 'フリー'" class="relative w-full max-w-[300px] mx-auto aspect-[2/3] bg-amber-900/60 border-[3px] border-white/60 rounded-sm mb-8 shadow-inner overflow-hidden select-none" style="background-image: repeating-linear-gradient(0deg, transparent, transparent 10%, rgba(255,255,255,0.05) 10%, rgba(255,255,255,0.05) 20%);">
+                  <div class="absolute top-1/2 left-0 w-full h-[2px] bg-white/60 -translate-y-1/2"></div>
+                  <div class="absolute top-1/2 left-1/2 w-16 h-16 border-[2px] border-white/60 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                  <div class="absolute top-0 left-1/2 w-32 h-12 border-[2px] border-t-0 border-white/60 -translate-x-1/2"></div>
+                  <div class="absolute bottom-0 left-1/2 w-32 h-12 border-[2px] border-b-0 border-white/60 -translate-x-1/2"></div>
+                  
+                  <!-- ポジションノード (相手) -->
+                  <div v-for="pos in currentOpponentFormationPositions" :key="pos.id" 
+                       class="absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer group"
+                       :style="{ top: pos.top, left: pos.left }"
+                       @click="openOpponentPlayerSelect(pos.id)">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-lg font-bold group-hover:scale-110 transition z-10 border-2"
+                         :class="matchForm.opponentLineup[pos.id] ? 'bg-amber-600 text-white border-white' : 'bg-slate-800/90 text-slate-300 border-slate-400 border-dashed'">
+                      {{ matchForm.opponentLineup[pos.id] ? (matchForm.opponentLineup[pos.id].number || '●') : pos.name }}
+                    </div>
+                    <div class="text-[10px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded mt-1 truncate max-w-[50px] text-center shadow whitespace-nowrap">
+                      {{ matchForm.opponentLineup[pos.id] && matchForm.opponentLineup[pos.id].name ? matchForm.opponentLineup[pos.id].name : pos.name }}
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="mb-6">
+                  <label class="form-label text-xs">フォーメーション名</label>
+                  <input type="text" v-model="matchForm.customOpponentFormation" class="form-input" placeholder="例: 4-4-2 (フラット)">
+                </div>
+
+                <div class="mt-auto">
+                  <label class="form-label">要注意選手・特徴リスト</label>
+                  <div class="space-y-2 mb-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                     <div v-if="Object.keys(matchForm.opponentLineup).length === 0 && matchForm.opponentPlayers.length === 0" class="text-sm text-slate-500 text-center py-4 bg-slate-900/50 rounded border border-slate-800">
+                       ピッチの●をクリックして相手選手を登録してください。<br>スタメン以外の選手は下の「追加」ボタンから登録できます。
+                     </div>
+                     
+                     <!-- ピッチ上の選手 (opponentLineup) -->
+                     <div v-for="(p, posId) in matchForm.opponentLineup" :key="posId" class="flex gap-2 items-start bg-slate-800/80 p-2 rounded border-l-2 border-amber-500">
+                        <span class="w-10 text-[10px] text-amber-400 font-bold flex items-center justify-center bg-slate-900 rounded shrink-0">{{ getPositionName(posId) }}</span>
+                        <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
+                        <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
+                        <input type="text" v-model="p.features" placeholder="特徴 (足が速い等)" class="flex-1 form-input text-xs py-1 px-2">
+                        <button @click="removeOpponentPlayerForPositionFromList(posId)" class="text-slate-500 hover:text-red-400 p-1 shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                     </div>
+
+                     <!-- その他の選手 (opponentPlayers) -->
+                     <div v-for="(p, index) in matchForm.opponentPlayers" :key="'other-'+index" class="flex gap-2 items-start bg-slate-800 p-2 rounded border border-slate-700/50">
+                        <span class="w-10 text-[10px] text-slate-400 font-bold flex items-center justify-center bg-slate-900 rounded shrink-0">控え等</span>
+                        <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
+                        <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
+                        <input type="text" v-model="p.features" placeholder="特徴 (足が速い等)" class="flex-1 form-input text-xs py-1 px-2">
+                        <button @click="removeOpponentPlayer(index)" class="text-red-400 hover:text-red-300 p-1 shrink-0"><i class="fa-solid fa-trash"></i></button>
                      </div>
                   </div>
-                  <button @click="addOpponentPlayer" class="text-xs text-amber-400 border border-amber-400/30 px-3 py-1 rounded hover:bg-amber-400/10 w-full transition"><i class="fa-solid fa-plus mr-1"></i>相手選手を追加</button>
+                  <button @click="addOpponentPlayer" class="text-xs text-amber-400 border border-amber-400/30 px-3 py-1 rounded hover:bg-amber-400/10 w-full transition"><i class="fa-solid fa-plus mr-1"></i>スタメン以外の相手選手を追加</button>
                 </div>
               </div>
             </div>
@@ -580,7 +636,7 @@
               </div>
             </div>
             
-            <!-- 選手選択モーダル (ピッチ内クリック用) -->
+            <!-- 選手選択モーダル (自チーム用) -->
             <div v-if="isSelectingPlayer" class="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center backdrop-blur-sm rounded-2xl fade-in p-4">
                <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl">
                  <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
@@ -598,7 +654,60 @@
                  </div>
                </div>
             </div>
-            
+
+            <!-- 相手選手入力モーダル -->
+            <div v-if="isSelectingOpponentPlayer" class="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center backdrop-blur-sm rounded-2xl fade-in p-4">
+               <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl">
+                 <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+                   <h4 class="text-white font-bold"><span class="text-amber-400 mr-1">{{ getPositionName(selectingOpponentPositionId) }}</span>の相手選手を登録</h4>
+                   <button @click="isSelectingOpponentPlayer = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                 </div>
+                 <div class="p-4 space-y-4">
+                   <div class="flex gap-4">
+                     <div class="w-20">
+                       <label class="block text-xs text-slate-400 mb-1">背番号</label>
+                       <input type="text" v-model="opponentPlayerForm.number" class="form-input text-center" autofocus>
+                     </div>
+                     <div class="flex-1">
+                       <label class="block text-xs text-slate-400 mb-1">名前 (わかる場合)</label>
+                       <input type="text" v-model="opponentPlayerForm.name" class="form-input">
+                     </div>
+                   </div>
+                   <div>
+                     <label class="block text-xs text-slate-400 mb-1">特徴 (プレースタイル・利き足など)</label>
+                     <input type="text" v-model="opponentPlayerForm.features" class="form-input" @keyup.enter="saveOpponentPlayerForPosition">
+                   </div>
+                   
+                   <div class="flex justify-between pt-2">
+                     <button @click="removeOpponentPlayerForPosition" class="text-red-400 hover:text-red-300 text-sm py-2 px-3 transition"><i class="fa-solid fa-eraser mr-1"></i>配置解除</button>
+                     <button @click="saveOpponentPlayerForPosition" class="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium transition shadow-lg shadow-amber-600/20">決定</button>
+                   </div>
+                 </div>
+               </div>
+            </div>
+
+            <!-- スタメン読込モーダル -->
+            <div v-if="showLoadLineupModal" class="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center backdrop-blur-sm rounded-2xl fade-in p-4">
+               <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80%]">
+                 <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0">
+                   <h4 class="text-white font-bold"><i class="fa-solid fa-folder-open mr-2 text-emerald-400"></i>保存済みスタメンの読込</h4>
+                   <button @click="showLoadLineupModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                 </div>
+                 <div class="overflow-y-auto custom-scrollbar p-2 flex-1">
+                   <div v-if="!settings.savedLineups || settings.savedLineups.length === 0" class="text-center py-6 text-slate-500 text-sm">
+                     保存されたスタメンはありません。
+                   </div>
+                   <div v-for="lu in settings.savedLineups" :key="lu.id" class="flex items-center justify-between bg-slate-700/50 hover:bg-slate-700 p-3 rounded mb-2 border border-slate-600 transition group">
+                     <div class="flex-1 cursor-pointer" @click="loadLineup(lu)">
+                       <div class="text-emerald-400 font-bold text-sm mb-0.5">{{ lu.name }}</div>
+                       <div class="text-xs text-slate-300">システム: {{ lu.formation }}</div>
+                     </div>
+                     <button @click="deleteSavedLineup(lu.id)" class="text-slate-500 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition" title="削除"><i class="fa-solid fa-trash"></i></button>
+                   </div>
+                 </div>
+               </div>
+            </div>
+
           </div>
         </div>
 
@@ -737,7 +846,7 @@
     createApp({
       setup() {
         // --- System State ---
-        const version = "1.4.0";
+        const version = "1.5.0";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -752,30 +861,34 @@
         const settings = reactive({
           defaultStartTime: '16:00',
           defaultEndTime: '18:30',
-          practiceMenus: ['アップ', 'パスコン', 'シュート', 'ミニゲーム']
+          practiceMenus: ['アップ', 'パスコン', 'シュート', 'ミニゲーム'],
+          savedLineups: [] // { id, name, formation, lineup }
         });
 
         // --- UI State ---
-        const studentTab = ref('active'); // active, ob
+        const studentTab = ref('active');
         const isEditingPractice = ref(false);
         const isEditingMatch = ref(false);
         const newMenuName = ref('');
         const showStudentModal = ref(false);
         const studentForm = reactive({ id: null, name: '', grade: 1, number: '', position: '', isGraduated: false });
         
-        // --- UI State for Practice Menus ---
         const isEditingPracticeMenus = ref(false);
         const newPracticeMenuInput = ref('');
 
-        // --- UI State for Match Formation ---
         const isSelectingPlayer = ref(false);
         const selectingPositionId = ref(null);
+        const showLoadLineupModal = ref(false);
+
+        const isSelectingOpponentPlayer = ref(false);
+        const selectingOpponentPositionId = ref(null);
+        const opponentPlayerForm = reactive({ number: '', name: '', features: '' });
 
         // --- Firebase Config State ---
         const customFirebaseEnabled = ref(false);
         const firebaseConfigInput = ref('');
 
-        // --- Database Path Helpers (共有領域用) ---
+        // --- Database Path Helpers ---
         const getPublicCollection = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
         const getPublicDoc = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
 
@@ -791,12 +904,7 @@
           if (!practiceForm.date) return;
           const date = new Date(practiceForm.date);
           const day = date.getDay();
-          // 土(6) か 日(0) なら休日扱いを自動でオンにする
-          if (day === 0 || day === 6) {
-            practiceForm.isHoliday = true;
-          } else {
-            practiceForm.isHoliday = false;
-          }
+          practiceForm.isHoliday = (day === 0 || day === 6);
         };
 
         // --- Forms ---
@@ -805,10 +913,10 @@
           date: new Date().toISOString().split('T')[0],
           startTime: settings.defaultStartTime,
           endTime: settings.defaultEndTime,
-          menus: [], // 順番を保持する配列
+          menus: [],
           weather: '晴れ',
           isHoliday: false,
-          attendance: {}, // { studentId: { status: '出席', comment: '' } }
+          attendance: {},
           overallComment: ''
         });
         const practiceForm = reactive(getEmptyPracticeForm());
@@ -825,12 +933,14 @@
           scoreUs: 0,
           scoreThem: 0,
           scorers: '',
-          formation: '4-2-3-1', // デフォルトフォーメーション
+          formation: '4-2-3-1',
           customFormation: '',
-          lineup: {}, // { 'fw1': 'student-id-123' }
-          opponentFormation: '',
-          opponentPlayers: [], // { number, position, features }
-          studentComments: {}, // { studentId: { position, comment } }
+          lineup: {}, 
+          opponentFormation: '4-4-2',
+          customOpponentFormation: '',
+          opponentLineup: {}, // { 'fw1': { number, name, features } }
+          opponentPlayers: [], // { number, name, features }
+          studentComments: {},
           overallComment: ''
         });
         const matchForm = reactive(getEmptyMatchForm());
@@ -852,29 +962,26 @@
         const sortedPractices = computed(() => [...practices.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
         const sortedMatches = computed(() => [...matches.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
 
-        // 現在選択中のフォーメーションの座標配列
         const currentFormationPositions = computed(() => {
           if (matchForm.formation === 'フリー' || !formations[matchForm.formation]) return [];
           return formations[matchForm.formation];
         });
 
-        // 欠席数の自動集計
+        const currentOpponentFormationPositions = computed(() => {
+          if (matchForm.opponentFormation === 'フリー' || !formations[matchForm.opponentFormation]) return [];
+          return formations[matchForm.opponentFormation];
+        });
+
         const studentStats = computed(() => {
           const stats = {};
-          students.value.forEach(s => {
-            stats[s.id] = { weekdayAbsent: 0, holidayAbsent: 0 };
-          });
-          
+          students.value.forEach(s => { stats[s.id] = { weekdayAbsent: 0, holidayAbsent: 0 }; });
           practices.value.forEach(p => {
             if (!p.attendance) return;
             const isHoliday = !!p.isHoliday;
             for (const [studentId, att] of Object.entries(p.attendance)) {
               if (stats[studentId] && att.status === '欠席') {
-                if (isHoliday) {
-                  stats[studentId].holidayAbsent++;
-                } else {
-                  stats[studentId].weekdayAbsent++;
-                }
+                if (isHoliday) stats[studentId].holidayAbsent++;
+                else stats[studentId].weekdayAbsent++;
               }
             }
           });
@@ -884,9 +991,7 @@
         // --- Firebase Init ---
         onMounted(() => {
           const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
-          if (storedConfig) {
-            firebaseConfigInput.value = storedConfig;
-          }
+          if (storedConfig) { firebaseConfigInput.value = storedConfig; }
           initFirebase();
         });
 
@@ -899,9 +1004,7 @@
                try {
                  configObj = JSON.parse(storedConfig);
                  customFirebaseEnabled.value = true;
-               } catch(e) {
-                 console.error("Config parse error");
-               }
+               } catch(e) { console.error("Config parse error"); }
             } 
             else if (typeof __firebase_config !== 'undefined') {
               configObj = JSON.parse(__firebase_config);
@@ -910,7 +1013,7 @@
             if (!configObj) {
               console.warn("ローカル環境での動作です。クラウド同期は無効化されます。");
               loadingAuth.value = false;
-              loadingData.value = false; // 無限ロードを解除
+              loadingData.value = false;
               user.value = { uid: 'local-offline-user' };
               return;
             }
@@ -939,19 +1042,15 @@
           } catch (e) {
             console.error("Firebase Initialization Error:", e);
             loadingAuth.value = false;
-            loadingData.value = false; // エラー時も無限ロードを解除
+            loadingData.value = false;
             customFirebaseEnabled.value = false;
             user.value = { uid: 'local-offline-user' };
-            alert("データベースの接続に失敗しました。設定JSONが正しいか、Firebase側で「匿名認証」が有効か確認してください。\nローカルモードで起動します。");
+            alert("データベースの接続に失敗しました。設定JSONが正しいか確認してください。\nローカルモードで起動します。");
           }
         };
 
-        // --- Data Loading (共有領域から) ---
         const loadData = async () => {
-          if (!user.value || !db) {
-            loadingData.value = false;
-            return;
-          }
+          if (!user.value || !db) { loadingData.value = false; return; }
           loadingData.value = true;
           try {
             const sSnap = await getDocs(getPublicCollection('students'));
@@ -968,6 +1067,7 @@
                const settingsDoc = setSnap.docs.find(d => d.id === 'app_settings');
                if(settingsDoc) {
                  const savedSettings = settingsDoc.data();
+                 if(!savedSettings.savedLineups) savedSettings.savedLineups = []; // 互換性
                  Object.assign(settings, savedSettings);
                }
             }
@@ -978,18 +1078,15 @@
           }
         };
 
-        // --- Save Helpers (共有領域へ) ---
         const saveToCloud = async (colName, id, data) => {
           if (!user.value || !db) return;
-          try {
-            await setDoc(getPublicDoc(colName, id), data);
-          } catch (e) { console.error("Save error", e); alert("保存に失敗しました。"); }
+          try { await setDoc(getPublicDoc(colName, id), data); } 
+          catch (e) { console.error("Save error", e); alert("保存に失敗しました。"); }
         };
         const deleteFromCloud = async (colName, id) => {
           if (!user.value || !db) return;
-          try {
-            await deleteDoc(getPublicDoc(colName, id));
-          } catch (e) { console.error("Delete error", e); }
+          try { await deleteDoc(getPublicDoc(colName, id)); } 
+          catch (e) { console.error("Delete error", e); }
         };
 
         // --- Student Methods ---
@@ -1014,16 +1111,12 @@
             try {
               const text = event.target.result;
               const lines = text.split('\n').filter(l => l.trim() !== '');
-              
               let batch = null;
-              if (db && user.value) {
-                batch = writeBatch(db);
-              }
+              if (db && user.value) batch = writeBatch(db);
               
               let count = 0;
               lines.forEach((line, index) => {
                 if (index === 0 && line.includes('名前')) return; 
-                
                 const parts = line.split(',');
                 const name = parts[0]?.trim();
                 const gradeStr = parts[1]?.trim();
@@ -1032,30 +1125,17 @@
 
                 if(name) {
                   const sId = crypto.randomUUID();
-                  const student = {
-                    id: sId,
-                    name: name,
-                    grade: parseInt(gradeStr) || 1,
-                    number: number,
-                    position: position,
-                    isGraduated: false,
-                    createdAt: Date.now()
-                  };
+                  const student = { id: sId, name, grade: parseInt(gradeStr) || 1, number, position, isGraduated: false, createdAt: Date.now() };
                   students.value.push(student);
-                  if (batch) {
-                    batch.set(getPublicDoc('students', sId), student);
-                  }
+                  if (batch) batch.set(getPublicDoc('students', sId), student);
                   count++;
                 }
               });
-              
-              if(batch && user.value) {
-                await batch.commit();
-              }
+              if(batch && user.value) await batch.commit();
               alert(`${count}名の生徒をインポートしました。`);
             } catch (err) { 
               console.error(err); 
-              alert("データのインポート中にエラーが発生しました。"); 
+              alert("エラーが発生しました。"); 
             } finally {
               loadingData.value = false;
               e.target.value = '';
@@ -1064,92 +1144,57 @@
           reader.readAsText(file);
         };
 
-        const openAddStudentModal = () => {
-          Object.assign(studentForm, { id: null, name: '', grade: 1, number: '', position: '', isGraduated: false });
-          showStudentModal.value = true;
-        };
-
-        const editStudent = (s) => {
-          Object.assign(studentForm, JSON.parse(JSON.stringify(s)));
-          showStudentModal.value = true;
-        };
-
+        const openAddStudentModal = () => { Object.assign(studentForm, { id: null, name: '', grade: 1, number: '', position: '', isGraduated: false }); showStudentModal.value = true; };
+        const editStudent = (s) => { Object.assign(studentForm, JSON.parse(JSON.stringify(s))); showStudentModal.value = true; };
         const saveStudent = async () => {
           if (!studentForm.name) { alert('名前は必須です'); return; }
           loadingData.value = true;
-          
           const isNew = !studentForm.id;
-          if (isNew) {
-            studentForm.id = crypto.randomUUID();
-            studentForm.createdAt = Date.now();
-          }
-          
+          if (isNew) { studentForm.id = crypto.randomUUID(); studentForm.createdAt = Date.now(); }
           const dataToSave = JSON.parse(JSON.stringify(studentForm));
           
-          if (isNew) {
-            students.value.push(dataToSave);
-          } else {
+          if (isNew) students.value.push(dataToSave);
+          else {
             const idx = students.value.findIndex(s => s.id === dataToSave.id);
             if(idx !== -1) students.value[idx] = dataToSave;
           }
-          
           showStudentModal.value = false;
           await saveToCloud('students', dataToSave.id, dataToSave);
           loadingData.value = false;
         };
 
         const deleteStudent = async (id) => {
-          if(confirm("この生徒データを削除しますか？\n（過去の記録からは名前が消えない場合があります）")) {
+          if(confirm("削除しますか？")) {
              students.value = students.value.filter(s => s.id !== id);
              await deleteFromCloud('students', id);
           }
         };
 
         const updateAcademicYear = async () => {
-          if(!confirm("全生徒の学年を1つ上げます。3年以上の生徒は「卒業(OB)」扱いになります。よろしいですか？")) return;
+          if(!confirm("年度更新を実行しますか？")) return;
           loadingData.value = true;
           try {
             let batch = null;
-            if (db && user.value) {
-              batch = writeBatch(db);
-            }
+            if (db && user.value) batch = writeBatch(db);
 
             students.value.forEach(s => {
                if(!s.isGraduated) {
                  s.grade += 1;
                  if(s.grade > 3) s.isGraduated = true; 
-                 if (batch) {
-                   batch.set(getPublicDoc('students', s.id), s);
-                 }
+                 if (batch) batch.set(getPublicDoc('students', s.id), s);
                }
             });
-
-            if(batch && user.value) {
-              await batch.commit();
-            }
-            alert("年度更新が完了しました。");
-          } catch(e) { 
-            console.error(e); 
-            alert("エラーが発生しました。");
-          } finally {
-            loadingData.value = false;
-          }
+            if(batch && user.value) await batch.commit();
+            alert("更新が完了しました。");
+          } catch(e) { console.error(e); } 
+          finally { loadingData.value = false; }
         };
 
-        const getStudentName = (id) => {
-          const s = students.value.find(st => st.id === id);
-          return s ? s.name : '不明な生徒';
-        };
-
-        const getStudentNumber = (id) => {
-          const s = students.value.find(st => st.id === id);
-          return s && s.number ? s.number : '';
-        };
-
+        const getStudentName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name : '不明'; };
+        const getStudentNumber = (id) => { const s = students.value.find(st => st.id === id); return s && s.number ? s.number : ''; };
         const getStudentShortName = (id) => {
           const s = students.value.find(st => st.id === id);
           if (!s) return '';
-          // 苗字だけ、または最初の3文字程度を返す
           return s.name.split(' ')[0].split('　')[0].substring(0, 4);
         };
 
@@ -1157,9 +1202,7 @@
         const openPracticeForm = () => {
           Object.assign(practiceForm, getEmptyPracticeForm());
           autoSetHoliday();
-          activeStudents.value.forEach(s => {
-            practiceForm.attendance[s.id] = { status: '出席', comment: '' };
-          });
+          activeStudents.value.forEach(s => { practiceForm.attendance[s.id] = { status: '出席', comment: '' }; });
           isEditingPracticeMenus.value = false;
           isEditingPractice.value = true;
         };
@@ -1169,72 +1212,51 @@
           if (!practiceForm.weather) practiceForm.weather = '晴れ';
           if (typeof practiceForm.isHoliday === 'undefined') {
               const date = new Date(practiceForm.date);
-              const day = date.getDay();
-              practiceForm.isHoliday = (day === 0 || day === 6);
+              practiceForm.isHoliday = (date.getDay() === 0 || date.getDay() === 6);
           }
-          
           activeStudents.value.forEach(s => {
-             if(!practiceForm.attendance[s.id]) {
-                practiceForm.attendance[s.id] = { status: '出席', comment: '' };
-             }
+             if(!practiceForm.attendance[s.id]) practiceForm.attendance[s.id] = { status: '出席', comment: '' };
           });
           isEditingPracticeMenus.value = false;
           isEditingPractice.value = true;
         };
 
-        const setAttendance = (studentId, status) => {
-          if(practiceForm.attendance[studentId]) {
-             practiceForm.attendance[studentId].status = status;
-          }
-        };
-
+        const setAttendance = (studentId, status) => { if(practiceForm.attendance[studentId]) practiceForm.attendance[studentId].status = status; };
         const getAttendanceCount = (practice, status) => {
           if(!practice.attendance) return 0;
           return Object.values(practice.attendance).filter(a => a.status === status).length;
         };
 
-        // --- Practice Menus (In-form editing) ---
-        const addMenuToPractice = (menu) => {
-          practiceForm.menus.push(menu);
-        };
-        const removeMenuFromPractice = (index) => {
-          practiceForm.menus.splice(index, 1);
-        };
+        const addMenuToPractice = (menu) => { practiceForm.menus.push(menu); };
+        const removeMenuFromPractice = (index) => { practiceForm.menus.splice(index, 1); };
         const addSettingMenuInline = () => {
           const val = newPracticeMenuInput.value.trim();
           if(val && !settings.practiceMenus.includes(val)) {
             settings.practiceMenus.push(val);
             newPracticeMenuInput.value = '';
-            saveSettings(); // 即時クラウド保存
+            saveSettings(); 
           }
         };
         const deleteSettingMenu = (index) => {
-          if(confirm("このメニューを候補から削除しますか？")) {
-            settings.practiceMenus.splice(index, 1);
-            saveSettings();
-          }
+          if(confirm("削除しますか？")) { settings.practiceMenus.splice(index, 1); saveSettings(); }
         };
 
         const savePractice = async () => {
           if (!practiceForm.date) { alert("日付を入力してください"); return; }
           const isNew = !practiceForm.id;
           if (isNew) practiceForm.id = crypto.randomUUID();
-          
           const dataToSave = JSON.parse(JSON.stringify(practiceForm));
           
-          if (isNew) {
-            practices.value.push(dataToSave);
-          } else {
+          if (isNew) practices.value.push(dataToSave);
+          else {
             const idx = practices.value.findIndex(p => p.id === dataToSave.id);
             if(idx !== -1) practices.value[idx] = dataToSave;
           }
-          
           isEditingPractice.value = false;
           await saveToCloud('practices', dataToSave.id, dataToSave);
         };
-
         const deletePractice = async (id) => {
-          if(confirm("この練習記録を削除しますか？")) {
+          if(confirm("削除しますか？")) {
              practices.value = practices.value.filter(p => p.id !== id);
              isEditingPractice.value = false;
              await deleteFromCloud('practices', id);
@@ -1242,51 +1264,37 @@
         };
 
         // --- Match & Formation Methods ---
-        const openMatchForm = () => {
-          Object.assign(matchForm, getEmptyMatchForm());
-          isEditingMatch.value = true;
-        };
-
+        const openMatchForm = () => { Object.assign(matchForm, getEmptyMatchForm()); isEditingMatch.value = true; };
         const editMatch = (m) => {
           Object.assign(matchForm, JSON.parse(JSON.stringify(m)));
+          // 古いデータのフォールバック（デバッグ）
           if(!matchForm.opponentPlayers) matchForm.opponentPlayers = [];
           if(!matchForm.studentComments) matchForm.studentComments = {};
           if(!matchForm.lineup) matchForm.lineup = {};
-          if(!matchForm.formation) matchForm.formation = '4-2-3-1'; // 旧データ対策
+          if(!matchForm.formation) matchForm.formation = '4-2-3-1'; 
+          if(!matchForm.opponentFormation) matchForm.opponentFormation = '4-4-2';
+          if(!matchForm.opponentLineup) matchForm.opponentLineup = {};
           isEditingMatch.value = true;
         };
 
-        const handleFormationChange = () => {
-          // フォーメーションを変えたら、とりあえずピッチ上の配置はリセットするか維持するか。
-          // IDが変わるので基本は消えるが、意図しないバグを防ぐためクリアを促すかそのまま。
-        };
+        const handleFormationChange = () => {};
 
         const getPositionName = (posId) => {
-          if (!posId || !currentFormationPositions.value) return '';
-          const p = currentFormationPositions.value.find(pos => pos.id === posId);
+          const p = currentFormationPositions.value.find(pos => pos.id === posId) || currentOpponentFormationPositions.value.find(pos => pos.id === posId);
           return p ? p.name : '';
         };
 
-        const openPlayerSelect = (posId) => {
-          selectingPositionId.value = posId;
-          isSelectingPlayer.value = true;
-        };
-
+        const openPlayerSelect = (posId) => { selectingPositionId.value = posId; isSelectingPlayer.value = true; };
         const selectPlayerForPosition = (studentId) => {
           if (studentId === null) {
-            // 解除
             delete matchForm.lineup[selectingPositionId.value];
           } else {
-            // 配置
             matchForm.lineup[selectingPositionId.value] = studentId;
-            
-            // 下のリストにも自動追加（なければ）
+            const posName = getPositionName(selectingPositionId.value);
             if (!matchForm.studentComments[studentId]) {
-               const posName = getPositionName(selectingPositionId.value);
                matchForm.studentComments[studentId] = { position: posName, comment: '' };
             } else {
-               // 既存の場合はポジション名だけ上書き更新
-               matchForm.studentComments[studentId].position = getPositionName(selectingPositionId.value);
+               matchForm.studentComments[studentId].position = posName;
             }
           }
           isSelectingPlayer.value = false;
@@ -1295,48 +1303,97 @@
 
         const fillActiveStudentsToMatch = () => {
            activeStudents.value.forEach(s => {
-              if(!matchForm.studentComments[s.id]) {
-                 matchForm.studentComments[s.id] = { position: s.position || '', comment: '' };
-              }
+              if(!matchForm.studentComments[s.id]) matchForm.studentComments[s.id] = { position: s.position || '', comment: '' };
            });
         };
-
         const removeStudentFromMatch = (studentId) => {
            delete matchForm.studentComments[studentId];
-           // ピッチからも消す
            for (const posId in matchForm.lineup) {
-              if (matchForm.lineup[posId] === studentId) {
-                 delete matchForm.lineup[posId];
-              }
+              if (matchForm.lineup[posId] === studentId) delete matchForm.lineup[posId];
            }
         };
 
-        const addOpponentPlayer = () => {
-          matchForm.opponentPlayers.push({ number: '', position: '', features: '' });
+        // スタメン保存・読込
+        const saveCurrentLineup = () => {
+          const name = prompt("現在のスタメンに名前を付けて保存します。\n(例: Aチーム, 3年主体 等)");
+          if (!name) return;
+          if (!settings.savedLineups) settings.savedLineups = [];
+          settings.savedLineups.push({
+            id: crypto.randomUUID(),
+            name: name,
+            formation: matchForm.formation,
+            lineup: JSON.parse(JSON.stringify(matchForm.lineup))
+          });
+          saveSettings();
+          alert("保存しました！「読込」から呼び出せます。");
         };
-        const removeOpponentPlayer = (index) => {
-          matchForm.opponentPlayers.splice(index, 1);
+
+        const loadLineup = (lu) => {
+          if (!confirm(`「${lu.name}」を読み込みますか？\n現在配置されている選手は上書きされます。`)) return;
+          matchForm.formation = lu.formation;
+          matchForm.lineup = JSON.parse(JSON.stringify(lu.lineup));
+          // studentComments を更新
+          for (const posId in matchForm.lineup) {
+             const studentId = matchForm.lineup[posId];
+             const posName = getPositionName(posId) || '';
+             if (!matchForm.studentComments[studentId]) {
+                matchForm.studentComments[studentId] = { position: posName, comment: '' };
+             } else {
+                matchForm.studentComments[studentId].position = posName;
+             }
+          }
+          showLoadLineupModal.value = false;
         };
+
+        const deleteSavedLineup = (id) => {
+          if(!confirm("この保存済みスタメンを削除しますか？")) return;
+          settings.savedLineups = settings.savedLineups.filter(lu => lu.id !== id);
+          saveSettings();
+        };
+
+        // 相手チームメソッド
+        const openOpponentPlayerSelect = (posId) => {
+          selectingOpponentPositionId.value = posId;
+          const current = matchForm.opponentLineup[posId];
+          if (current) {
+            Object.assign(opponentPlayerForm, JSON.parse(JSON.stringify(current)));
+          } else {
+            Object.assign(opponentPlayerForm, { number: '', name: '', features: '' });
+          }
+          isSelectingOpponentPlayer.value = true;
+        };
+        const saveOpponentPlayerForPosition = () => {
+          matchForm.opponentLineup[selectingOpponentPositionId.value] = JSON.parse(JSON.stringify(opponentPlayerForm));
+          isSelectingOpponentPlayer.value = false;
+          selectingOpponentPositionId.value = null;
+        };
+        const removeOpponentPlayerForPosition = () => {
+          delete matchForm.opponentLineup[selectingOpponentPositionId.value];
+          isSelectingOpponentPlayer.value = false;
+          selectingOpponentPositionId.value = null;
+        };
+        const removeOpponentPlayerForPositionFromList = (posId) => {
+          delete matchForm.opponentLineup[posId];
+        };
+
+        const addOpponentPlayer = () => { matchForm.opponentPlayers.push({ number: '', name: '', features: '' }); };
+        const removeOpponentPlayer = (index) => { matchForm.opponentPlayers.splice(index, 1); };
 
         const saveMatch = async () => {
           const isNew = !matchForm.id;
           if (isNew) matchForm.id = crypto.randomUUID();
-          
           const dataToSave = JSON.parse(JSON.stringify(matchForm));
           
-          if (isNew) {
-            matches.value.push(dataToSave);
-          } else {
+          if (isNew) matches.value.push(dataToSave);
+          else {
             const idx = matches.value.findIndex(m => m.id === dataToSave.id);
             if(idx !== -1) matches.value[idx] = dataToSave;
           }
-          
           isEditingMatch.value = false;
           await saveToCloud('matches', dataToSave.id, dataToSave);
         };
-
         const deleteMatch = async (id) => {
-          if(confirm("この試合記録を削除しますか？")) {
+          if(confirm("削除しますか？")) {
              matches.value = matches.value.filter(m => m.id !== id);
              isEditingMatch.value = false;
              await deleteFromCloud('matches', id);
@@ -1347,10 +1404,7 @@
         const saveFirebaseConfig = () => {
           try {
             let configText = firebaseConfigInput.value.trim();
-            if (!configText) {
-              alert("設定が入力されていません。");
-              return;
-            }
+            if (!configText) { alert("設定が入力されていません。"); return; }
             
             const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
             const configObj = {};
@@ -1359,26 +1413,17 @@
             for (const key of keys) {
                const regex = new RegExp(`["'“”]?${key}["'“”]?\\s*:\\s*["'“”]([^"'“”]+)["'“”]`);
                const match = configText.match(regex);
-               if (match && match[1]) {
-                 configObj[key] = match[1];
-               } else {
-                 isExtracted = false; 
-                 break;
-               }
+               if (match && match[1]) configObj[key] = match[1];
+               else { isExtracted = false; break; }
             }
 
             if (isExtracted) {
               localStorage.setItem('soccer_mgr_firebase_config', JSON.stringify(configObj, null, 2));
             } else {
-              configText = configText.replace(/[“”″]/g, '"')
-                                     .replace(/[‘’′]/g, "'")
-                                     .replace(/　/g, ' ')
-                                     .replace(/,\s*}/g, '}') 
-                                     .replace(/[\u200B-\u200D\uFEFF]/g, ''); 
+              configText = configText.replace(/[“”″]/g, '"').replace(/[‘’′]/g, "'").replace(/　/g, ' ').replace(/,\s*}/g, '}').replace(/[\u200B-\u200D\uFEFF]/g, ''); 
               JSON.parse(configText); 
               localStorage.setItem('soccer_mgr_firebase_config', configText);
             }
-
             alert("Firebase設定を保存しました。アプリを再読み込みして適用します。");
             window.location.reload();
           } catch(e) {
@@ -1395,9 +1440,7 @@
           }
         };
 
-        const saveSettings = async () => {
-          await saveToCloud('settings', 'app_settings', Object.assign({}, settings));
-        };
+        const saveSettings = async () => { await saveToCloud('settings', 'app_settings', Object.assign({}, settings)); };
 
         const addPracticeMenu = () => {
           const val = newMenuName.value.trim();
@@ -1407,20 +1450,14 @@
             saveSettings();
           }
         };
+
         const removePracticeMenu = (index) => {
           settings.practiceMenus.splice(index, 1);
           saveSettings();
         };
 
         const exportJSON = () => {
-          const data = {
-            version: version,
-            exportDate: new Date().toISOString(),
-            students: students.value,
-            practices: practices.value,
-            matches: matches.value,
-            settings: settings
-          };
+          const data = { version, exportDate: new Date().toISOString(), students: students.value, practices: practices.value, matches: matches.value, settings };
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -1433,9 +1470,7 @@
         const importJSON = (e) => {
           const file = e.target.files[0];
           if(!file) return;
-          if(!confirm("現在のデータはすべて上書きされ、クラウドにも同期されます。復元を実行しますか？")) {
-             e.target.value = ''; return;
-          }
+          if(!confirm("現在のデータはすべて上書きされ、クラウドにも同期されます。復元を実行しますか？")) { e.target.value = ''; return; }
           
           const reader = new FileReader();
           reader.onload = async (event) => {
@@ -1446,7 +1481,10 @@
               if(data.students) students.value = data.students;
               if(data.practices) practices.value = data.practices;
               if(data.matches) matches.value = data.matches;
-              if(data.settings) Object.assign(settings, data.settings);
+              if(data.settings) {
+                 if(!data.settings.savedLineups) data.settings.savedLineups = []; // 互換性
+                 Object.assign(settings, data.settings);
+              }
 
               if (user.value && db) {
                 const batch = writeBatch(db);
@@ -1480,6 +1518,8 @@
           isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
           matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer,
           currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange,
+          currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList,
+          saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
           settings, newMenuName, addPracticeMenu, removePracticeMenu, saveSettings,
           customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig,
           exportJSON, importJSON
