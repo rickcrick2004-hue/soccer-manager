@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.1</title>
+  <title>Soccer Team Manager v1.2</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -112,7 +112,8 @@
                 <li v-for="p in sortedPractices.slice(0, 5)" :key="p.id" class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg">
                   <div>
                     <span class="text-emerald-400 font-mono text-sm">{{ p.date }} ({{ getWeekday(p.date) }})</span>
-                    <span class="ml-3 text-slate-300 text-sm">{{ p.menus.join(', ') || 'メニュー未登録' }}</span>
+                    <span v-if="p.isHoliday" class="text-xs border border-amber-600/50 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded ml-1">休日</span>
+                    <span class="ml-2 text-slate-300 text-sm">{{ p.menus.join(', ') || 'メニュー未登録' }}</span>
                   </div>
                   <button @click="editPractice(p)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-right"></i></button>
                 </li>
@@ -157,27 +158,35 @@
             </div>
           </div>
 
-          <div class="glass-panel rounded-2xl overflow-hidden">
-            <table class="w-full text-left border-collapse">
+          <div class="glass-panel rounded-2xl overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr class="bg-slate-800/80 text-slate-400 text-sm uppercase tracking-wider">
                   <th class="p-4 font-medium">名前</th>
                   <th class="p-4 font-medium">学年</th>
                   <th class="p-4 font-medium">背番号</th>
                   <th class="p-4 font-medium">Pos</th>
+                  <th class="p-4 font-medium text-center">欠席 (平/休)</th>
                   <th class="p-4 font-medium">ステータス</th>
                   <th class="p-4 font-medium text-right">操作</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-700/50">
                 <tr v-if="displayStudents.length === 0">
-                  <td colspan="6" class="p-8 text-center text-slate-500">生徒データがありません。手動追加またはCSVで追加してください。</td>
+                  <td colspan="7" class="p-8 text-center text-slate-500">生徒データがありません。手動追加またはCSVで追加してください。</td>
                 </tr>
                 <tr v-for="s in displayStudents" :key="s.id" class="hover:bg-slate-800/30 transition">
                   <td class="p-4 font-medium text-white">{{ s.name }}</td>
                   <td class="p-4 text-slate-300">{{ s.grade }}年</td>
                   <td class="p-4 text-slate-300 font-mono">{{ s.number || '-' }}</td>
                   <td class="p-4 text-slate-300">{{ s.position || '-' }}</td>
+                  <td class="p-4 text-center">
+                    <div class="inline-flex gap-2 items-center text-sm bg-slate-900/50 px-3 py-1 rounded border border-slate-700/50">
+                      <span class="text-slate-400">平: <span class="text-red-400 font-bold">{{ studentStats[s.id]?.weekdayAbsent || 0 }}</span></span>
+                      <span class="text-slate-600">|</span>
+                      <span class="text-slate-400">休: <span class="text-amber-500 font-bold">{{ studentStats[s.id]?.holidayAbsent || 0 }}</span></span>
+                    </div>
+                  </td>
                   <td class="p-4">
                     <span v-if="s.isGraduated" class="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded-full">卒業</span>
                     <span v-else class="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">現役</span>
@@ -245,6 +254,7 @@
                     <span class="bg-emerald-600/20 text-emerald-400 font-mono px-2 py-1 rounded text-sm font-bold flex items-center gap-1">
                       {{ p.date }} <span class="text-xs font-normal">({{ getWeekday(p.date) }})</span>
                     </span>
+                    <span v-if="p.isHoliday" class="text-xs border border-amber-600/50 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">休日</span>
                     <span v-if="p.weather" class="text-xs border border-slate-600 text-slate-400 px-1.5 py-0.5 rounded">{{ p.weather }}</span>
                     <span class="text-slate-400 text-sm ml-1"><i class="fa-regular fa-clock mr-1"></i>{{ p.startTime }} - {{ p.endTime }}</span>
                   </div>
@@ -252,7 +262,7 @@
                 </div>
                 <div class="flex gap-4 text-sm text-slate-400 bg-slate-800/50 p-3 rounded-lg md:w-64 shrink-0">
                    <div class="flex-1">出: <span class="text-emerald-400 font-bold">{{ getAttendanceCount(p, '出席') }}</span></div>
-                   <div class="flex-1">遅: <span class="text-amber-400 font-bold">{{ getAttendanceCount(p, '遅刻') }}</span></div>
+                   <div class="flex-1">遅: <span class="text-blue-400 font-bold">{{ getAttendanceCount(p, '遅刻') }}</span></div>
                    <div class="flex-1">欠: <span class="text-red-400 font-bold">{{ getAttendanceCount(p, '欠席') }}</span></div>
                 </div>
               </div>
@@ -265,11 +275,15 @@
             <h2 class="text-2xl font-bold text-white mb-6">{{ practiceForm.id ? '練習記録の編集' : '新規練習記録' }}</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div>
-                <label class="block text-sm text-slate-400 mb-2">日付</label>
+              <div class="md:col-span-2">
+                <label class="block text-sm text-slate-400 mb-2">日付と種別</label>
                 <div class="flex items-center gap-3">
-                  <input type="date" v-model="practiceForm.date" class="form-input flex-1">
-                  <span class="text-slate-300 font-bold text-lg w-8">{{ getWeekday(practiceForm.date) }}</span>
+                  <input type="date" v-model="practiceForm.date" @change="autoSetHoliday" class="form-input flex-1">
+                  <span class="text-slate-300 font-bold text-lg w-8 text-center">{{ getWeekday(practiceForm.date) }}</span>
+                  <label class="flex items-center gap-2 cursor-pointer border border-slate-700 pl-2 pr-4 py-3 rounded-lg bg-slate-900/80 hover:bg-slate-800 transition">
+                    <input type="checkbox" v-model="practiceForm.isHoliday" class="w-5 h-5 text-amber-500 rounded focus:ring-amber-500 bg-slate-800 border-slate-600">
+                    <span class="text-sm font-medium" :class="practiceForm.isHoliday ? 'text-amber-400' : 'text-slate-400'">休日扱い</span>
+                  </label>
                 </div>
               </div>
               <div>
@@ -279,12 +293,12 @@
                 </select>
               </div>
               <div>
-                <label class="block text-sm text-slate-400 mb-2">開始時間</label>
-                <input type="time" v-model="practiceForm.startTime" class="form-input">
-              </div>
-              <div>
-                <label class="block text-sm text-slate-400 mb-2">終了時間</label>
-                <input type="time" v-model="practiceForm.endTime" class="form-input">
+                <label class="block text-sm text-slate-400 mb-2">時間</label>
+                <div class="flex items-center gap-2">
+                  <input type="time" v-model="practiceForm.startTime" class="form-input px-2 text-sm text-center">
+                  <span class="text-slate-500">-</span>
+                  <input type="time" v-model="practiceForm.endTime" class="form-input px-2 text-sm text-center">
+                </div>
               </div>
             </div>
 
@@ -317,7 +331,7 @@
                       <td class="py-3">
                         <div class="flex rounded-lg overflow-hidden border border-slate-700 w-max">
                           <button type="button" @click="setAttendance(s.id, '出席')" :class="['px-3 py-1 text-sm font-medium transition', practiceForm.attendance[s.id]?.status === '出席' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">出席</button>
-                          <button type="button" @click="setAttendance(s.id, '遅刻')" :class="['px-3 py-1 text-sm font-medium transition border-l border-r border-slate-700', practiceForm.attendance[s.id]?.status === '遅刻' ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">遅刻</button>
+                          <button type="button" @click="setAttendance(s.id, '遅刻')" :class="['px-3 py-1 text-sm font-medium transition border-l border-r border-slate-700', practiceForm.attendance[s.id]?.status === '遅刻' ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">遅刻</button>
                           <button type="button" @click="setAttendance(s.id, '欠席')" :class="['px-3 py-1 text-sm font-medium transition', practiceForm.attendance[s.id]?.status === '欠席' ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">欠席</button>
                         </div>
                       </td>
@@ -581,7 +595,7 @@
     createApp({
       setup() {
         // --- System State ---
-        const version = "1.1.0";
+        const version = "1.2.0";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -619,6 +633,18 @@
           return days[date.getDay()];
         };
 
+        const autoSetHoliday = () => {
+          if (!practiceForm.date) return;
+          const date = new Date(practiceForm.date);
+          const day = date.getDay();
+          // 土(6) か 日(0) なら休日扱いを自動でオンにする
+          if (day === 0 || day === 6) {
+            practiceForm.isHoliday = true;
+          } else {
+            practiceForm.isHoliday = false;
+          }
+        };
+
         // --- Forms ---
         const getEmptyPracticeForm = () => ({
           id: null,
@@ -627,6 +653,7 @@
           endTime: settings.defaultEndTime,
           menus: [],
           weather: '晴れ',
+          isHoliday: false,
           attendance: {}, // { studentId: { status: '出席', comment: '' } }
           overallComment: ''
         });
@@ -668,6 +695,29 @@
         
         const sortedPractices = computed(() => [...practices.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
         const sortedMatches = computed(() => [...matches.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
+
+        // 欠席数の自動集計
+        const studentStats = computed(() => {
+          const stats = {};
+          students.value.forEach(s => {
+            stats[s.id] = { weekdayAbsent: 0, holidayAbsent: 0 };
+          });
+          
+          practices.value.forEach(p => {
+            if (!p.attendance) return;
+            const isHoliday = !!p.isHoliday;
+            for (const [studentId, att] of Object.entries(p.attendance)) {
+              if (stats[studentId] && att.status === '欠席') {
+                if (isHoliday) {
+                  stats[studentId].holidayAbsent++;
+                } else {
+                  stats[studentId].weekdayAbsent++;
+                }
+              }
+            }
+          });
+          return stats;
+        });
 
         // --- Firebase Init ---
         onMounted(() => {
@@ -945,6 +995,7 @@
         // --- Practice Methods ---
         const openPracticeForm = () => {
           Object.assign(practiceForm, getEmptyPracticeForm());
+          autoSetHoliday(); // 日付に応じた休日の初期設定
           // Init attendance
           activeStudents.value.forEach(s => {
             practiceForm.attendance[s.id] = { status: '出席', comment: '' };
@@ -956,6 +1007,13 @@
           Object.assign(practiceForm, JSON.parse(JSON.stringify(p))); // Deep copy
           // 既存データに天気がない場合のフォールバック
           if (!practiceForm.weather) practiceForm.weather = '晴れ';
+          
+          // 古いデータにisHolidayがない場合は土日判定する
+          if (typeof practiceForm.isHoliday === 'undefined') {
+              const date = new Date(practiceForm.date);
+              const day = date.getDay();
+              practiceForm.isHoliday = (day === 0 || day === 6);
+          }
           
           // Ensure all active students are in the attendance list even if added later
           activeStudents.value.forEach(s => {
@@ -1059,18 +1117,24 @@
         // --- Settings & Export/Import ---
         const saveFirebaseConfig = () => {
           try {
-            const configText = firebaseConfigInput.value.trim();
+            let configText = firebaseConfigInput.value.trim();
             if (!configText) {
               alert("設定が入力されていません。");
               return;
             }
+            
+            // スマホでのコピー時に発生しやすい全角クォートやスマートクォートを半角に正規化する
+            configText = configText.replace(/[””″]/g, '"')
+                                   .replace(/[’’′]/g, "'")
+                                   .replace(/　/g, ' ');
+
             // JSONフォーマットのチェック
             JSON.parse(configText);
             localStorage.setItem('soccer_mgr_firebase_config', configText);
             alert("Firebase設定を保存しました。アプリを再読み込みして適用します。");
             window.location.reload();
           } catch(e) {
-            alert("JSONの形式が正しくありません。「{」と「}」で囲まれているか、ダブルクォーテーションの抜けがないか確認してください。");
+            alert("入力されたテキストの形式が正しくありません。\n余計な文字が入っていないか確認してください。");
           }
         };
 
@@ -1165,9 +1229,9 @@
 
         return {
           version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
-          students, activeStudents, obStudents, displayStudents, studentTab, getStudentName,
+          students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, studentStats,
           downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
-          getWeekday,
+          getWeekday, autoSetHoliday,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount,
           matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, addOpponentPlayer, removeOpponentPlayer,
           settings, newMenuName, addPracticeMenu, removePracticeMenu, saveSettings,
