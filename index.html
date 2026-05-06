@@ -1123,18 +1123,42 @@
               return;
             }
             
-            // スマホでのコピー時に発生しやすい全角クォートやスマートクォートを半角に正規化する
-            configText = configText.replace(/[””″]/g, '"')
-                                   .replace(/[’’′]/g, "'")
-                                   .replace(/　/g, ' ');
+            // どんなコピペの崩れにも対応できるよう、必要な項目だけを自動抽出
+            const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+            const configObj = {};
+            let isExtracted = true;
 
-            // JSONフォーマットのチェック
-            JSON.parse(configText);
-            localStorage.setItem('soccer_mgr_firebase_config', configText);
+            for (const key of keys) {
+               // "apiKey": "..." などのパターンを抽出（全角クォートや余計な空白も許容）
+               const regex = new RegExp(`["'“”]?${key}["'“”]?\\s*:\\s*["'“”]([^"'“”]+)["'“”]`);
+               const match = configText.match(regex);
+               if (match && match[1]) {
+                 configObj[key] = match[1];
+               } else {
+                 isExtracted = false; // 1つでも見つからなければ抽出失敗
+                 break;
+               }
+            }
+
+            if (isExtracted) {
+              // 抽出成功
+              localStorage.setItem('soccer_mgr_firebase_config', JSON.stringify(configObj, null, 2));
+            } else {
+              // 抽出失敗時は一応JSONパースを試みる（フォールバック）
+              configText = configText.replace(/[“”″]/g, '"')
+                                     .replace(/[‘’′]/g, "'")
+                                     .replace(/　/g, ' ')
+                                     .replace(/,\s*}/g, '}') // 末尾カンマ許容
+                                     .replace(/[\u200B-\u200D\uFEFF]/g, ''); // 見えない文字削除
+              JSON.parse(configText); 
+              localStorage.setItem('soccer_mgr_firebase_config', configText);
+            }
+
             alert("Firebase設定を保存しました。アプリを再読み込みして適用します。");
             window.location.reload();
           } catch(e) {
-            alert("入力されたテキストの形式が正しくありません。\n余計な文字が入っていないか確認してください。");
+            alert("設定を読み取れませんでした。必要な項目（apiKeyなど）が含まれているか確認してください。");
+            console.error("Config Parse Error:", e);
           }
         };
 
