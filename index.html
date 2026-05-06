@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.7</title>
+  <title>Soccer Team Manager v1.8</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -54,6 +54,10 @@
           <button @click="currentView = 'match'" :class="['nav-btn', currentView === 'match' ? 'active' : '']">
             <i class="fa-solid fa-trophy w-6 text-center"></i>
             <span class="hidden md:block ml-3 font-medium">試合記録</span>
+          </button>
+          <button @click="currentView = 'memo'" :class="['nav-btn', currentView === 'memo' ? 'active' : '']">
+            <i class="fa-solid fa-note-sticky w-6 text-center"></i>
+            <span class="hidden md:block ml-3 font-medium">メモ</span>
           </button>
           <button @click="currentView = 'settings'" :class="['nav-btn', currentView === 'settings' ? 'active' : '']">
             <i class="fa-solid fa-gear w-6 text-center"></i>
@@ -746,6 +750,51 @@
           </div>
         </div>
 
+        <!-- MEMO VIEW -->
+        <div v-if="currentView === 'memo'" class="space-y-6 fade-in">
+          <!-- List Mode -->
+          <div v-if="!isEditingMemo">
+            <div class="flex justify-between items-center mb-6">
+              <h2 class="text-xl font-bold text-white">メモ一覧</h2>
+              <button @click="openMemoForm()" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>新規メモ</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div v-if="sortedMemos.length === 0" class="col-span-full glass-panel p-8 text-center text-slate-500 rounded-2xl">メモがありません</div>
+              <div v-for="m in sortedMemos" :key="m.id" class="glass-panel rounded-xl p-5 hover:border-emerald-500/50 transition cursor-pointer flex flex-col" @click="editMemo(m)">
+                <h3 class="text-lg font-bold text-white mb-2 truncate">{{ m.title }}</h3>
+                <p class="text-slate-400 text-sm line-clamp-3 mb-4 flex-1 whitespace-pre-wrap">{{ m.content }}</p>
+                <div class="text-xs text-slate-500 text-right"><i class="fa-regular fa-clock mr-1"></i>{{ formatDate(m.updatedAt) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Form Mode -->
+          <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative">
+            <button @click="isEditingMemo = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-bold text-white mb-6">{{ memoForm.id ? 'メモの編集' : '新規メモ' }}</h2>
+            
+            <div class="space-y-6">
+              <div>
+                <label class="form-label">タイトル</label>
+                <input type="text" v-model="memoForm.title" class="form-input text-lg font-bold" placeholder="メモのタイトル">
+              </div>
+              <div>
+                <label class="form-label">内容</label>
+                <textarea v-model="memoForm.content" rows="10" class="form-input resize-y" placeholder="メモの内容を入力..."></textarea>
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center border-t border-slate-700 pt-6 mt-8">
+              <button v-if="memoForm.id" @click="deleteMemo(memoForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
+              <div v-else></div>
+              <div class="flex space-x-3">
+                <button @click="isEditingMemo = false" class="btn-secondary">キャンセル</button>
+                <button @click="saveMemo" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- SETTINGS VIEW -->
         <div v-if="currentView === 'settings'" class="space-y-8 fade-in max-w-4xl">
           
@@ -888,7 +937,7 @@
     createApp({
       setup() {
         // --- System State ---
-        const version = "1.7.0";
+        const version = "1.8.0";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -900,6 +949,7 @@
         const students = ref([]);
         const practices = ref([]);
         const matches = ref([]);
+        const memos = ref([]);
         const settings = reactive({
           defaultStartTime: '16:00',
           defaultEndTime: '18:30',
@@ -911,6 +961,7 @@
         const studentTab = ref('active');
         const isEditingPractice = ref(false);
         const isEditingMatch = ref(false);
+        const isEditingMemo = ref(false);
         const newMenuName = ref('');
         const showStudentModal = ref(false);
         const studentForm = reactive({ id: null, name: '', grade: 1, number: '', position: '', isGraduated: false });
@@ -949,6 +1000,12 @@
           const date = new Date(practiceForm.date);
           const day = date.getDay();
           practiceForm.isHoliday = (day === 0 || day === 6);
+        };
+
+        const formatDate = (timestamp) => {
+           if (!timestamp) return '';
+           const d = new Date(timestamp);
+           return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
         };
 
         // --- Forms ---
@@ -990,13 +1047,21 @@
         });
         const matchForm = reactive(getEmptyMatchForm());
 
+        const getEmptyMemoForm = () => ({
+          id: null,
+          title: '',
+          content: '',
+          updatedAt: null
+        });
+        const memoForm = reactive(getEmptyMemoForm());
+
         // --- Computed ---
         const viewTitle = computed(() => {
-          const titles = { dashboard: 'ダッシュボード', students: '名簿・生徒管理', practice: '練習記録', match: '試合記録', settings: '設定・データ' };
+          const titles = { dashboard: 'ダッシュボード', students: '名簿・生徒管理', practice: '練習記録', match: '試合記録', memo: 'メモ', settings: '設定・データ' };
           return titles[currentView.value];
         });
         const viewSubtitle = computed(() => {
-           const subs = { dashboard: 'チームの現状を一目で確認', students: '部員の登録・更新・状態管理', practice: '日々の練習メニューと出席状況', match: '対戦結果・フォーメーション分析', settings: 'アプリの基本設定とバックアップ' };
+           const subs = { dashboard: 'チームの現状を一目で確認', students: '部員の登録・更新・状態管理', practice: '日々の練習メニューと出席状況', match: '対戦結果・フォーメーション分析', memo: '日々の気づきやアイデアを記録', settings: 'アプリの基本設定とバックアップ' };
            return subs[currentView.value];
         });
 
@@ -1049,6 +1114,7 @@
         
         const sortedPractices = computed(() => [...practices.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
         const sortedMatches = computed(() => [...matches.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
+        const sortedMemos = computed(() => [...memos.value].sort((a, b) => b.updatedAt - a.updatedAt));
 
         const currentFormationPositions = computed(() => {
           if (matchForm.formation === 'フリー' || !formations[matchForm.formation]) return [];
@@ -1137,6 +1203,9 @@
 
             const mSnap = await getDocs(getPublicCollection('matches'));
             matches.value = mSnap.docs.map(d => d.data());
+            
+            const memoSnap = await getDocs(getPublicCollection('memos'));
+            memos.value = memoSnap.docs.map(d => d.data());
 
             const setSnap = await getDocs(getPublicCollection('settings'));
             if (!setSnap.empty) {
@@ -1489,6 +1558,45 @@
           }
         };
 
+        // --- Memo Methods ---
+        const openMemoForm = () => {
+          Object.assign(memoForm, getEmptyMemoForm());
+          isEditingMemo.value = true;
+        };
+
+        const editMemo = (m) => {
+          Object.assign(memoForm, JSON.parse(JSON.stringify(m)));
+          isEditingMemo.value = true;
+        };
+
+        const saveMemo = async () => {
+          if (!memoForm.title) { alert("タイトルを入力してください"); return; }
+          loadingData.value = true;
+          const isNew = !memoForm.id;
+          if (isNew) {
+            memoForm.id = crypto.randomUUID();
+          }
+          memoForm.updatedAt = Date.now();
+          const dataToSave = JSON.parse(JSON.stringify(memoForm));
+          
+          if (isNew) memos.value.push(dataToSave);
+          else {
+            const idx = memos.value.findIndex(m => m.id === dataToSave.id);
+            if(idx !== -1) memos.value[idx] = dataToSave;
+          }
+          isEditingMemo.value = false;
+          await saveToCloud('memos', dataToSave.id, dataToSave);
+          loadingData.value = false;
+        };
+
+        const deleteMemo = async (id) => {
+          if(confirm("このメモを削除しますか？")) {
+             memos.value = memos.value.filter(m => m.id !== id);
+             isEditingMemo.value = false;
+             await deleteFromCloud('memos', id);
+          }
+        };
+
         // --- Settings & Export/Import ---
         const saveFirebaseConfig = () => {
           try {
@@ -1546,7 +1654,7 @@
         };
 
         const exportJSON = () => {
-          const data = { version, exportDate: new Date().toISOString(), students: students.value, practices: practices.value, matches: matches.value, settings };
+          const data = { version, exportDate: new Date().toISOString(), students: students.value, practices: practices.value, matches: matches.value, memos: memos.value, settings };
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -1570,6 +1678,7 @@
               if(data.students) students.value = data.students;
               if(data.practices) practices.value = data.practices;
               if(data.matches) matches.value = data.matches;
+              if(data.memos) memos.value = data.memos;
               if(data.settings) {
                  if(!data.settings.savedLineups) data.settings.savedLineups = []; // 互換性
                  Object.assign(settings, data.settings);
@@ -1580,6 +1689,7 @@
                 if(data.students) data.students.forEach(s => batch.set(getPublicDoc('students', s.id), s));
                 if(data.practices) data.practices.forEach(p => batch.set(getPublicDoc('practices', p.id), p));
                 if(data.matches) data.matches.forEach(m => batch.set(getPublicDoc('matches', m.id), m));
+                if(data.memos) data.memos.forEach(m => batch.set(getPublicDoc('memos', m.id), m));
                 if(data.settings) batch.set(getPublicDoc('settings', 'app_settings'), data.settings);
 
                 await batch.commit();
@@ -1603,13 +1713,14 @@
           students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, getStudentShortName, getStudentNumber, studentStats,
           sortConfig, sortBy, resetSort,
           downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
-          getWeekday, autoSetHoliday,
+          getWeekday, autoSetHoliday, formatDate,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount,
           isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
           matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer,
           currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange,
           currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList,
           saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
+          memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
           settings, newMenuName, addPracticeMenu, removePracticeMenu, saveSettings,
           customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig,
           exportJSON, importJSON
