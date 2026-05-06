@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.2</title>
+  <title>Soccer Team Manager v1.3</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -595,7 +595,7 @@
     createApp({
       setup() {
         // --- System State ---
-        const version = "1.2.0";
+        const version = "1.3.0";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -624,6 +624,10 @@
         // --- Firebase Config State ---
         const customFirebaseEnabled = ref(false);
         const firebaseConfigInput = ref('');
+
+        // --- Database Path Helpers (共有領域用) ---
+        const getPublicCollection = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
+        const getPublicDoc = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
 
         // --- Utils ---
         const getWeekday = (dateString) => {
@@ -789,7 +793,7 @@
           }
         };
 
-        // --- Data Loading ---
+        // --- Data Loading (共有領域から) ---
         const loadData = async () => {
           if (!user.value || !db) {
             loadingData.value = false;
@@ -797,25 +801,27 @@
           }
           loadingData.value = true;
           try {
-            const userRef = doc(db, 'artifacts', appId, 'users', user.value.uid);
-
             // Load Students
-            const sSnap = await getDocs(collection(userRef, 'students'));
+            const sSnap = await getDocs(getPublicCollection('students'));
             students.value = sSnap.docs.map(d => d.data());
 
             // Load Practices
-            const pSnap = await getDocs(collection(userRef, 'practices'));
+            const pSnap = await getDocs(getPublicCollection('practices'));
             practices.value = pSnap.docs.map(d => d.data());
 
             // Load Matches
-            const mSnap = await getDocs(collection(userRef, 'matches'));
+            const mSnap = await getDocs(getPublicCollection('matches'));
             matches.value = mSnap.docs.map(d => d.data());
 
             // Load Settings
-            const setSnap = await getDocs(collection(userRef, 'settings'));
+            const setSnap = await getDocs(getPublicCollection('settings'));
             if (!setSnap.empty) {
-               const savedSettings = setSnap.docs[0].data();
-               Object.assign(settings, savedSettings);
+               // app_settingsというドキュメントを想定
+               const settingsDoc = setSnap.docs.find(d => d.id === 'app_settings');
+               if(settingsDoc) {
+                 const savedSettings = settingsDoc.data();
+                 Object.assign(settings, savedSettings);
+               }
             }
           } catch (error) {
             console.error("Error loading data:", error);
@@ -824,17 +830,17 @@
           }
         };
 
-        // --- Save Helpers ---
+        // --- Save Helpers (共有領域へ) ---
         const saveToCloud = async (colName, id, data) => {
           if (!user.value || !db) return;
           try {
-            await setDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, colName, id), data);
+            await setDoc(getPublicDoc(colName, id), data);
           } catch (e) { console.error("Save error", e); alert("保存に失敗しました。"); }
         };
         const deleteFromCloud = async (colName, id) => {
           if (!user.value || !db) return;
           try {
-            await deleteDoc(doc(db, 'artifacts', appId, 'users', user.value.uid, colName, id));
+            await deleteDoc(getPublicDoc(colName, id));
           } catch (e) { console.error("Delete error", e); }
         };
 
@@ -863,10 +869,8 @@
               const lines = text.split('\n').filter(l => l.trim() !== '');
               
               let batch = null;
-              let userRef = null;
               if (db && user.value) {
                 batch = writeBatch(db);
-                userRef = doc(db, 'artifacts', appId, 'users', user.value.uid);
               }
               
               let count = 0;
@@ -891,8 +895,8 @@
                     createdAt: Date.now()
                   };
                   students.value.push(student);
-                  if (batch && userRef) {
-                    batch.set(doc(collection(userRef, 'students'), sId), student);
+                  if (batch) {
+                    batch.set(getPublicDoc('students', sId), student);
                   }
                   count++;
                 }
@@ -959,18 +963,16 @@
           loadingData.value = true;
           try {
             let batch = null;
-            let userRef = null;
             if (db && user.value) {
               batch = writeBatch(db);
-              userRef = doc(db, 'artifacts', appId, 'users', user.value.uid);
             }
 
             students.value.forEach(s => {
                if(!s.isGraduated) {
                  s.grade += 1;
                  if(s.grade > 3) s.isGraduated = true; // Assuming High School. Adjust logic if needed.
-                 if (batch && userRef) {
-                   batch.set(doc(collection(userRef, 'students'), s.id), s);
+                 if (batch) {
+                   batch.set(getPublicDoc('students', s.id), s);
                  }
                }
             });
@@ -1224,16 +1226,15 @@
               if(data.matches) matches.value = data.matches;
               if(data.settings) Object.assign(settings, data.settings);
 
-              // Restore Cloud State
+              // Restore Cloud State (共有領域へ)
               if (user.value && db) {
                 const batch = writeBatch(db);
-                const userRef = doc(db, 'artifacts', appId, 'users', user.value.uid);
                 
                 // Add new documents to batch
-                if(data.students) data.students.forEach(s => batch.set(doc(collection(userRef, 'students'), s.id), s));
-                if(data.practices) data.practices.forEach(p => batch.set(doc(collection(userRef, 'practices'), p.id), p));
-                if(data.matches) data.matches.forEach(m => batch.set(doc(collection(userRef, 'matches'), m.id), m));
-                if(data.settings) batch.set(doc(userRef, 'settings', 'app_settings'), data.settings);
+                if(data.students) data.students.forEach(s => batch.set(getPublicDoc('students', s.id), s));
+                if(data.practices) data.practices.forEach(p => batch.set(getPublicDoc('practices', p.id), p));
+                if(data.matches) data.matches.forEach(m => batch.set(getPublicDoc('matches', m.id), m));
+                if(data.settings) batch.set(getPublicDoc('settings', 'app_settings'), data.settings);
 
                 await batch.commit();
                 alert("データの復元とクラウドへの同期が完了しました。");
