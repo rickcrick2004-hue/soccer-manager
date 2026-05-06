@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.3</title>
+  <title>Soccer Team Manager v1.4</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -113,7 +113,12 @@
                   <div>
                     <span class="text-emerald-400 font-mono text-sm">{{ p.date }} ({{ getWeekday(p.date) }})</span>
                     <span v-if="p.isHoliday" class="text-xs border border-amber-600/50 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded ml-1">休日</span>
-                    <span class="ml-2 text-slate-300 text-sm">{{ p.menus.join(', ') || 'メニュー未登録' }}</span>
+                    <span class="ml-2 text-slate-300 text-sm">
+                      <template v-if="p.menus.length > 0">
+                         <span v-for="(m, i) in p.menus" :key="i">{{ i > 0 ? ' → ' : '' }}{{ m }}</span>
+                      </template>
+                      <template v-else>メニュー未登録</template>
+                    </span>
                   </div>
                   <button @click="editPractice(p)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-right"></i></button>
                 </li>
@@ -258,7 +263,14 @@
                     <span v-if="p.weather" class="text-xs border border-slate-600 text-slate-400 px-1.5 py-0.5 rounded">{{ p.weather }}</span>
                     <span class="text-slate-400 text-sm ml-1"><i class="fa-regular fa-clock mr-1"></i>{{ p.startTime }} - {{ p.endTime }}</span>
                   </div>
-                  <div class="text-white font-medium mt-2">{{ p.menus.length > 0 ? p.menus.join(' / ') : 'メニューなし' }}</div>
+                  <div class="text-white font-medium mt-2">
+                    <template v-if="p.menus.length > 0">
+                      <span v-for="(m, i) in p.menus" :key="i" class="mr-1">
+                         {{ m }}<span v-if="i < p.menus.length - 1" class="text-slate-500 mx-1">→</span>
+                      </span>
+                    </template>
+                    <template v-else>メニューなし</template>
+                  </div>
                 </div>
                 <div class="flex gap-4 text-sm text-slate-400 bg-slate-800/50 p-3 rounded-lg md:w-64 shrink-0">
                    <div class="flex-1">出: <span class="text-emerald-400 font-bold">{{ getAttendanceCount(p, '出席') }}</span></div>
@@ -302,15 +314,46 @@
               </div>
             </div>
 
+            <!-- メニュー選択（順番保持・リスト管理付き） -->
             <div class="mb-8 border-t border-slate-700 pt-6">
-              <label class="block text-sm font-bold text-emerald-400 mb-4"><i class="fa-solid fa-list-check mr-2"></i>練習メニュー (複数選択可)</label>
-              <div class="flex flex-wrap gap-3">
-                <label v-for="menu in settings.practiceMenus" :key="menu" class="cursor-pointer group">
-                  <input type="checkbox" :value="menu" v-model="practiceForm.menus" class="peer hidden">
-                  <div class="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-500 transition shadow-sm hover:bg-slate-700">
-                    {{ menu }}
+              <div class="flex justify-between items-end mb-4">
+                <label class="block text-sm font-bold text-emerald-400"><i class="fa-solid fa-list-ol mr-2"></i>実施したメニュー (クリックで順番に追加)</label>
+                <button type="button" @click="isEditingPracticeMenus = !isEditingPracticeMenus" class="text-xs text-blue-400 hover:text-blue-300 bg-blue-400/10 px-2 py-1 rounded transition">
+                  <i class="fa-solid fa-pen mr-1"></i>メニューリストを編集
+                </button>
+              </div>
+
+              <!-- 選択済みメニュー -->
+              <div class="flex flex-wrap gap-2 mb-4 min-h-[44px] p-2 bg-slate-900/80 rounded-lg border border-slate-700 items-center">
+                <div v-for="(m, i) in practiceForm.menus" :key="i" @click="removeMenuFromPractice(i)" class="bg-emerald-600 text-white pl-3 pr-2 py-1 rounded-full text-sm flex items-center cursor-pointer hover:bg-red-500 transition group" title="クリックで削除">
+                  <span class="font-mono font-bold mr-1.5 opacity-80">{{ i + 1 }}.</span> {{ m }} 
+                  <i class="fa-solid fa-xmark ml-2 text-[10px] bg-black/20 rounded-full w-4 h-4 flex items-center justify-center group-hover:bg-black/40"></i>
+                </div>
+                <span v-if="practiceForm.menus.length === 0" class="text-slate-500 text-sm ml-2">下の候補から選んでください...</span>
+              </div>
+              
+              <!-- 候補リスト (通常モード) -->
+              <div v-if="!isEditingPracticeMenus" class="flex flex-wrap gap-2 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                <button v-for="menu in settings.practiceMenus" :key="menu" type="button" @click="addMenuToPractice(menu)" class="px-3 py-1.5 bg-slate-800 border border-slate-600 rounded-lg text-slate-300 hover:bg-slate-700 hover:border-slate-500 text-sm transition shadow-sm">
+                  <i class="fa-solid fa-plus text-emerald-500/70 mr-1.5 text-xs"></i>{{ menu }}
+                </button>
+                <span v-if="settings.practiceMenus.length === 0" class="text-xs text-slate-500 py-1">登録されているメニューがありません</span>
+              </div>
+              
+              <!-- 候補リスト (編集モード) -->
+              <div v-else class="bg-slate-800 p-4 rounded-lg border border-blue-500/30 shadow-inner">
+                <p class="text-xs text-slate-400 mb-3"><i class="fa-solid fa-circle-info mr-1"></i>ここでの変更はアプリ全体の設定に保存されます。</p>
+                <div class="flex flex-wrap gap-2 mb-4">
+                  <div v-for="(menu, i) in settings.practiceMenus" :key="i" class="flex items-center gap-1 bg-slate-900 border border-slate-700 pl-3 pr-1 py-1 rounded">
+                    <span class="text-slate-300 text-sm">{{ menu }}</span>
+                    <button type="button" @click="deleteSettingMenu(i)" class="text-slate-500 hover:text-red-400 p-1 ml-1 transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
                   </div>
-                </label>
+                </div>
+                <div class="flex gap-2">
+                  <input type="text" v-model="newPracticeMenuInput" placeholder="新しいメニュー名を入力" class="form-input py-1.5 px-3 text-sm flex-1" @keyup.enter="addSettingMenuInline">
+                  <button type="button" @click="addSettingMenuInline" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-sm transition font-medium">追加</button>
+                  <button type="button" @click="isEditingPracticeMenus = false" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-1.5 rounded text-sm transition font-medium border border-slate-600">完了</button>
+                </div>
               </div>
             </div>
 
@@ -434,22 +477,64 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              <!-- Our Team -->
+              <!-- Our Team & Formation -->
               <div class="border border-slate-700 rounded-xl p-5 bg-slate-900/30">
-                <h3 class="text-emerald-400 font-bold mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-shield-halved mr-2"></i>自チーム情報</h3>
-                <div class="mb-4">
-                  <label class="form-label">フォーメーション</label>
-                  <input type="text" v-model="matchForm.formation" class="form-input" placeholder="例: 4-4-2">
+                <h3 class="text-emerald-400 font-bold mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-shield-halved mr-2"></i>フォーメーション＆出場選手</h3>
+                <div class="mb-6 flex gap-4 items-center">
+                  <label class="form-label mb-0">システム</label>
+                  <select v-model="matchForm.formation" class="form-input w-48" @change="handleFormationChange">
+                    <option value="4-4-2">4-4-2</option>
+                    <option value="4-2-3-1">4-2-3-1</option>
+                    <option value="4-3-3">4-3-3</option>
+                    <option value="3-5-2">3-5-2</option>
+                    <option value="3-4-3">3-4-3</option>
+                    <option value="フリー">フリー (手動入力)</option>
+                  </select>
                 </div>
+
+                <!-- ピッチUI -->
+                <div v-if="matchForm.formation !== 'フリー'" class="relative w-full max-w-[300px] mx-auto aspect-[2/3] bg-emerald-800/80 border-[3px] border-white/80 rounded-sm mb-8 shadow-inner overflow-hidden select-none" style="background-image: repeating-linear-gradient(0deg, transparent, transparent 10%, rgba(255,255,255,0.05) 10%, rgba(255,255,255,0.05) 20%);">
+                  <!-- ピッチのライン -->
+                  <div class="absolute top-1/2 left-0 w-full h-[2px] bg-white/80 -translate-y-1/2"></div>
+                  <div class="absolute top-1/2 left-1/2 w-16 h-16 border-[2px] border-white/80 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                  <div class="absolute top-0 left-1/2 w-32 h-12 border-[2px] border-t-0 border-white/80 -translate-x-1/2"></div>
+                  <div class="absolute bottom-0 left-1/2 w-32 h-12 border-[2px] border-b-0 border-white/80 -translate-x-1/2"></div>
+                  
+                  <!-- ポジションノード -->
+                  <div v-for="pos in currentFormationPositions" :key="pos.id" 
+                       class="absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer group"
+                       :style="{ top: pos.top, left: pos.left }"
+                       @click="openPlayerSelect(pos.id)">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-lg font-bold group-hover:scale-110 transition z-10 border-2"
+                         :class="matchForm.lineup[pos.id] ? 'bg-emerald-500 text-white border-white' : 'bg-slate-800/90 text-slate-300 border-slate-400 border-dashed'">
+                      {{ matchForm.lineup[pos.id] ? (getStudentNumber(matchForm.lineup[pos.id]) || '●') : pos.name }}
+                    </div>
+                    <div class="text-[10px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded mt-1 truncate max-w-[50px] text-center shadow whitespace-nowrap">
+                      {{ getStudentShortName(matchForm.lineup[pos.id]) || pos.name }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- フリーフォーメーション -->
+                <div v-else class="mb-6">
+                  <label class="form-label text-xs">フォーメーション名</label>
+                  <input type="text" v-model="matchForm.customFormation" class="form-input" placeholder="例: 4-4-2 (ダイヤモンド)">
+                </div>
+
                 <div>
                   <label class="form-label flex justify-between items-center">
                     <span>出場選手・個別評価</span>
-                    <button @click="fillActiveStudentsToMatch" class="text-xs bg-emerald-600/20 text-emerald-400 px-2 py-1 rounded hover:bg-emerald-600/40">現役をセット</button>
+                    <button @click="fillActiveStudentsToMatch" class="text-xs bg-emerald-600/20 text-emerald-400 px-2 py-1 rounded hover:bg-emerald-600/40 transition">現役全員をリストに追加</button>
                   </label>
                   <div class="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                    <div v-if="Object.keys(matchForm.studentComments).length === 0" class="text-sm text-slate-500 text-center py-2">「現役をセット」をクリックして名簿を読み込み</div>
-                    <div v-for="(comment, studentId) in matchForm.studentComments" :key="studentId" class="flex flex-col bg-slate-800 p-2 rounded">
-                      <div class="text-sm text-white font-medium mb-1">{{ getStudentName(studentId) }}</div>
+                    <div v-if="Object.keys(matchForm.studentComments).length === 0" class="text-sm text-slate-500 text-center py-4 bg-slate-900/50 rounded border border-slate-800">
+                      ピッチの●をクリックして選手を配置するか、<br>「現役全員を追加」をクリックしてください。
+                    </div>
+                    <div v-for="(comment, studentId) in matchForm.studentComments" :key="studentId" class="flex flex-col bg-slate-800 p-2.5 rounded border border-slate-700/50">
+                      <div class="text-sm text-white font-medium mb-1.5 flex justify-between">
+                        <span><span class="text-emerald-400 font-mono text-xs mr-1">{{ getStudentNumber(studentId) }}</span>{{ getStudentName(studentId) }}</span>
+                        <button @click="removeStudentFromMatch(studentId)" class="text-slate-500 hover:text-red-400 transition"><i class="fa-solid fa-xmark"></i></button>
+                      </div>
                       <div class="flex gap-2">
                         <input type="text" v-model="matchForm.studentComments[studentId].position" placeholder="Pos" class="w-16 form-input text-xs py-1 px-2">
                         <input type="text" v-model="matchForm.studentComments[studentId].comment" placeholder="評価・コメント" class="flex-1 form-input text-xs py-1 px-2">
@@ -476,7 +561,7 @@
                         <button @click="removeOpponentPlayer(index)" class="text-red-400 hover:text-red-300 p-1"><i class="fa-solid fa-xmark"></i></button>
                      </div>
                   </div>
-                  <button @click="addOpponentPlayer" class="text-xs text-amber-400 border border-amber-400/30 px-3 py-1 rounded hover:bg-amber-400/10 w-full"><i class="fa-solid fa-plus mr-1"></i>相手選手を追加</button>
+                  <button @click="addOpponentPlayer" class="text-xs text-amber-400 border border-amber-400/30 px-3 py-1 rounded hover:bg-amber-400/10 w-full transition"><i class="fa-solid fa-plus mr-1"></i>相手選手を追加</button>
                 </div>
               </div>
             </div>
@@ -494,6 +579,26 @@
                 <button @click="saveMatch" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
               </div>
             </div>
+            
+            <!-- 選手選択モーダル (ピッチ内クリック用) -->
+            <div v-if="isSelectingPlayer" class="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center backdrop-blur-sm rounded-2xl fade-in p-4">
+               <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl">
+                 <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+                   <h4 class="text-white font-bold"><span class="text-emerald-400 mr-1">{{ getPositionName(selectingPositionId) }}</span>の選手を選択</h4>
+                   <button @click="isSelectingPlayer = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                 </div>
+                 <div class="max-h-64 overflow-y-auto custom-scrollbar p-2">
+                   <button @click="selectPlayerForPosition(null)" class="w-full text-left px-4 py-3 text-red-400 hover:bg-slate-700 rounded transition border-b border-slate-700/50 mb-1 flex items-center">
+                     <i class="fa-solid fa-eraser mr-2"></i>配置を解除する
+                   </button>
+                   <button v-for="s in activeStudents" :key="s.id" @click="selectPlayerForPosition(s.id)" class="w-full text-left px-4 py-2.5 text-slate-200 hover:bg-slate-700 rounded transition flex items-center justify-between">
+                     <span><span class="text-emerald-400 font-mono w-6 inline-block">{{ s.number || '-' }}</span> {{ s.name }}</span>
+                     <span class="text-xs text-slate-500">{{ s.position }}</span>
+                   </button>
+                 </div>
+               </div>
+            </div>
+            
           </div>
         </div>
 
@@ -592,10 +697,47 @@
 
     const { createApp, ref, reactive, computed, onMounted } = Vue;
 
+    // --- フォーメーション定義 ---
+    // top: 上(敵陣)からの割合, left: 左からの割合
+    const formations = {
+      '4-4-2': [
+        { id: 'fw1', name: 'FW', top: '15%', left: '35%' }, { id: 'fw2', name: 'FW', top: '15%', left: '65%' },
+        { id: 'mf1', name: 'SH', top: '40%', left: '15%' }, { id: 'mf2', name: 'CH', top: '40%', left: '35%' }, { id: 'mf3', name: 'CH', top: '40%', left: '65%' }, { id: 'mf4', name: 'SH', top: '40%', left: '85%' },
+        { id: 'df1', name: 'SB', top: '70%', left: '15%' }, { id: 'df2', name: 'CB', top: '70%', left: '35%' }, { id: 'df3', name: 'CB', top: '70%', left: '65%' }, { id: 'df4', name: 'SB', top: '70%', left: '85%' },
+        { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '4-2-3-1': [
+         { id: 'fw1', name: 'CF', top: '10%', left: '50%' },
+         { id: 'mf1', name: 'SH', top: '30%', left: '20%' }, { id: 'mf2', name: 'OMF', top: '30%', left: '50%' }, { id: 'mf3', name: 'SH', top: '30%', left: '80%' },
+         { id: 'mf4', name: 'DMF', top: '50%', left: '35%' }, { id: 'mf5', name: 'DMF', top: '50%', left: '65%' },
+         { id: 'df1', name: 'SB', top: '75%', left: '15%' }, { id: 'df2', name: 'CB', top: '75%', left: '35%' }, { id: 'df3', name: 'CB', top: '75%', left: '65%' }, { id: 'df4', name: 'SB', top: '75%', left: '85%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '4-3-3': [
+         { id: 'fw1', name: 'WG', top: '15%', left: '20%' }, { id: 'fw2', name: 'CF', top: '15%', left: '50%' }, { id: 'fw3', name: 'WG', top: '15%', left: '80%' },
+         { id: 'mf1', name: 'IH', top: '40%', left: '30%' }, { id: 'mf2', name: 'IH', top: '40%', left: '70%' }, { id: 'mf3', name: 'DMF', top: '55%', left: '50%' },
+         { id: 'df1', name: 'SB', top: '75%', left: '15%' }, { id: 'df2', name: 'CB', top: '75%', left: '35%' }, { id: 'df3', name: 'CB', top: '75%', left: '65%' }, { id: 'df4', name: 'SB', top: '75%', left: '85%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '3-5-2': [
+         { id: 'fw1', name: 'FW', top: '15%', left: '35%' }, { id: 'fw2', name: 'FW', top: '15%', left: '65%' },
+         { id: 'mf1', name: 'WB', top: '40%', left: '15%' }, { id: 'mf2', name: 'OMF', top: '35%', left: '50%' }, { id: 'mf3', name: 'WB', top: '40%', left: '85%' },
+         { id: 'mf4', name: 'DMF', top: '55%', left: '35%' }, { id: 'mf5', name: 'DMF', top: '55%', left: '65%' },
+         { id: 'df1', name: 'CB', top: '75%', left: '25%' }, { id: 'df2', name: 'CB', top: '75%', left: '50%' }, { id: 'df3', name: 'CB', top: '75%', left: '75%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '3-4-3': [
+         { id: 'fw1', name: 'WG', top: '15%', left: '20%' }, { id: 'fw2', name: 'CF', top: '15%', left: '50%' }, { id: 'fw3', name: 'WG', top: '15%', left: '80%' },
+         { id: 'mf1', name: 'SH', top: '45%', left: '15%' }, { id: 'mf2', name: 'CH', top: '45%', left: '35%' }, { id: 'mf3', name: 'CH', top: '45%', left: '65%' }, { id: 'mf4', name: 'SH', top: '45%', left: '85%' },
+         { id: 'df1', name: 'CB', top: '75%', left: '25%' }, { id: 'df2', name: 'CB', top: '75%', left: '50%' }, { id: 'df3', name: 'CB', top: '75%', left: '75%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ]
+    };
+
     createApp({
       setup() {
         // --- System State ---
-        const version = "1.3.0";
+        const version = "1.4.0";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -621,6 +763,14 @@
         const showStudentModal = ref(false);
         const studentForm = reactive({ id: null, name: '', grade: 1, number: '', position: '', isGraduated: false });
         
+        // --- UI State for Practice Menus ---
+        const isEditingPracticeMenus = ref(false);
+        const newPracticeMenuInput = ref('');
+
+        // --- UI State for Match Formation ---
+        const isSelectingPlayer = ref(false);
+        const selectingPositionId = ref(null);
+
         // --- Firebase Config State ---
         const customFirebaseEnabled = ref(false);
         const firebaseConfigInput = ref('');
@@ -655,7 +805,7 @@
           date: new Date().toISOString().split('T')[0],
           startTime: settings.defaultStartTime,
           endTime: settings.defaultEndTime,
-          menus: [],
+          menus: [], // 順番を保持する配列
           weather: '晴れ',
           isHoliday: false,
           attendance: {}, // { studentId: { status: '出席', comment: '' } }
@@ -675,7 +825,9 @@
           scoreUs: 0,
           scoreThem: 0,
           scorers: '',
-          formation: '',
+          formation: '4-2-3-1', // デフォルトフォーメーション
+          customFormation: '',
+          lineup: {}, // { 'fw1': 'student-id-123' }
           opponentFormation: '',
           opponentPlayers: [], // { number, position, features }
           studentComments: {}, // { studentId: { position, comment } }
@@ -699,6 +851,12 @@
         
         const sortedPractices = computed(() => [...practices.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
         const sortedMatches = computed(() => [...matches.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
+
+        // 現在選択中のフォーメーションの座標配列
+        const currentFormationPositions = computed(() => {
+          if (matchForm.formation === 'フリー' || !formations[matchForm.formation]) return [];
+          return formations[matchForm.formation];
+        });
 
         // 欠席数の自動集計
         const studentStats = computed(() => {
@@ -725,7 +883,6 @@
 
         // --- Firebase Init ---
         onMounted(() => {
-          // 初期化時にlocalStorageから読み込み
           const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
           if (storedConfig) {
             firebaseConfigInput.value = storedConfig;
@@ -738,7 +895,6 @@
             let configObj = null;
             const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
 
-            // 1. ユーザー設定があれば優先
             if (storedConfig) {
                try {
                  configObj = JSON.parse(storedConfig);
@@ -747,12 +903,10 @@
                  console.error("Config parse error");
                }
             } 
-            // 2. なければCanvasの標準環境
             else if (typeof __firebase_config !== 'undefined') {
               configObj = JSON.parse(__firebase_config);
             }
 
-            // Environment Check
             if (!configObj) {
               console.warn("ローカル環境での動作です。クラウド同期は無効化されます。");
               loadingAuth.value = false;
@@ -766,7 +920,6 @@
             db = getFirestore(app);
 
             const initAuth = async () => {
-              // カスタムFirebaseの場合は匿名認証を利用
               if (customFirebaseEnabled.value) {
                 await signInAnonymously(auth);
               } else if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -801,22 +954,17 @@
           }
           loadingData.value = true;
           try {
-            // Load Students
             const sSnap = await getDocs(getPublicCollection('students'));
             students.value = sSnap.docs.map(d => d.data());
 
-            // Load Practices
             const pSnap = await getDocs(getPublicCollection('practices'));
             practices.value = pSnap.docs.map(d => d.data());
 
-            // Load Matches
             const mSnap = await getDocs(getPublicCollection('matches'));
             matches.value = mSnap.docs.map(d => d.data());
 
-            // Load Settings
             const setSnap = await getDocs(getPublicCollection('settings'));
             if (!setSnap.empty) {
-               // app_settingsというドキュメントを想定
                const settingsDoc = setSnap.docs.find(d => d.id === 'app_settings');
                if(settingsDoc) {
                  const savedSettings = settingsDoc.data();
@@ -846,7 +994,6 @@
 
         // --- Student Methods ---
         const downloadCSVTemplate = () => {
-          // BOMを追加してExcelでの文字化けを防ぐ
           const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
           const content = '名前,学年,背番号,ポジション\n山田太郎,2,10,FW\n鈴木一郎,1,15,MF\n';
           const blob = new Blob([bom, content], { type: 'text/csv' });
@@ -875,7 +1022,7 @@
               
               let count = 0;
               lines.forEach((line, index) => {
-                if (index === 0 && line.includes('名前')) return; // ヘッダー行をスキップ
+                if (index === 0 && line.includes('名前')) return; 
                 
                 const parts = line.split(',');
                 const name = parts[0]?.trim();
@@ -911,10 +1058,10 @@
               alert("データのインポート中にエラーが発生しました。"); 
             } finally {
               loadingData.value = false;
-              e.target.value = ''; // reset input
+              e.target.value = '';
             }
           };
-          reader.readAsText(file); // BOM付きUTF-8も自動的に解釈される
+          reader.readAsText(file);
         };
 
         const openAddStudentModal = () => {
@@ -970,7 +1117,7 @@
             students.value.forEach(s => {
                if(!s.isGraduated) {
                  s.grade += 1;
-                 if(s.grade > 3) s.isGraduated = true; // Assuming High School. Adjust logic if needed.
+                 if(s.grade > 3) s.isGraduated = true; 
                  if (batch) {
                    batch.set(getPublicDoc('students', s.id), s);
                  }
@@ -994,35 +1141,44 @@
           return s ? s.name : '不明な生徒';
         };
 
+        const getStudentNumber = (id) => {
+          const s = students.value.find(st => st.id === id);
+          return s && s.number ? s.number : '';
+        };
+
+        const getStudentShortName = (id) => {
+          const s = students.value.find(st => st.id === id);
+          if (!s) return '';
+          // 苗字だけ、または最初の3文字程度を返す
+          return s.name.split(' ')[0].split('　')[0].substring(0, 4);
+        };
+
         // --- Practice Methods ---
         const openPracticeForm = () => {
           Object.assign(practiceForm, getEmptyPracticeForm());
-          autoSetHoliday(); // 日付に応じた休日の初期設定
-          // Init attendance
+          autoSetHoliday();
           activeStudents.value.forEach(s => {
             practiceForm.attendance[s.id] = { status: '出席', comment: '' };
           });
+          isEditingPracticeMenus.value = false;
           isEditingPractice.value = true;
         };
 
         const editPractice = (p) => {
-          Object.assign(practiceForm, JSON.parse(JSON.stringify(p))); // Deep copy
-          // 既存データに天気がない場合のフォールバック
+          Object.assign(practiceForm, JSON.parse(JSON.stringify(p))); 
           if (!practiceForm.weather) practiceForm.weather = '晴れ';
-          
-          // 古いデータにisHolidayがない場合は土日判定する
           if (typeof practiceForm.isHoliday === 'undefined') {
               const date = new Date(practiceForm.date);
               const day = date.getDay();
               practiceForm.isHoliday = (day === 0 || day === 6);
           }
           
-          // Ensure all active students are in the attendance list even if added later
           activeStudents.value.forEach(s => {
              if(!practiceForm.attendance[s.id]) {
                 practiceForm.attendance[s.id] = { status: '出席', comment: '' };
              }
           });
+          isEditingPracticeMenus.value = false;
           isEditingPractice.value = true;
         };
 
@@ -1035,6 +1191,28 @@
         const getAttendanceCount = (practice, status) => {
           if(!practice.attendance) return 0;
           return Object.values(practice.attendance).filter(a => a.status === status).length;
+        };
+
+        // --- Practice Menus (In-form editing) ---
+        const addMenuToPractice = (menu) => {
+          practiceForm.menus.push(menu);
+        };
+        const removeMenuFromPractice = (index) => {
+          practiceForm.menus.splice(index, 1);
+        };
+        const addSettingMenuInline = () => {
+          const val = newPracticeMenuInput.value.trim();
+          if(val && !settings.practiceMenus.includes(val)) {
+            settings.practiceMenus.push(val);
+            newPracticeMenuInput.value = '';
+            saveSettings(); // 即時クラウド保存
+          }
+        };
+        const deleteSettingMenu = (index) => {
+          if(confirm("このメニューを候補から削除しますか？")) {
+            settings.practiceMenus.splice(index, 1);
+            saveSettings();
+          }
         };
 
         const savePractice = async () => {
@@ -1063,7 +1241,7 @@
           }
         };
 
-        // --- Match Methods ---
+        // --- Match & Formation Methods ---
         const openMatchForm = () => {
           Object.assign(matchForm, getEmptyMatchForm());
           isEditingMatch.value = true;
@@ -1073,15 +1251,64 @@
           Object.assign(matchForm, JSON.parse(JSON.stringify(m)));
           if(!matchForm.opponentPlayers) matchForm.opponentPlayers = [];
           if(!matchForm.studentComments) matchForm.studentComments = {};
+          if(!matchForm.lineup) matchForm.lineup = {};
+          if(!matchForm.formation) matchForm.formation = '4-2-3-1'; // 旧データ対策
           isEditingMatch.value = true;
+        };
+
+        const handleFormationChange = () => {
+          // フォーメーションを変えたら、とりあえずピッチ上の配置はリセットするか維持するか。
+          // IDが変わるので基本は消えるが、意図しないバグを防ぐためクリアを促すかそのまま。
+        };
+
+        const getPositionName = (posId) => {
+          if (!posId || !currentFormationPositions.value) return '';
+          const p = currentFormationPositions.value.find(pos => pos.id === posId);
+          return p ? p.name : '';
+        };
+
+        const openPlayerSelect = (posId) => {
+          selectingPositionId.value = posId;
+          isSelectingPlayer.value = true;
+        };
+
+        const selectPlayerForPosition = (studentId) => {
+          if (studentId === null) {
+            // 解除
+            delete matchForm.lineup[selectingPositionId.value];
+          } else {
+            // 配置
+            matchForm.lineup[selectingPositionId.value] = studentId;
+            
+            // 下のリストにも自動追加（なければ）
+            if (!matchForm.studentComments[studentId]) {
+               const posName = getPositionName(selectingPositionId.value);
+               matchForm.studentComments[studentId] = { position: posName, comment: '' };
+            } else {
+               // 既存の場合はポジション名だけ上書き更新
+               matchForm.studentComments[studentId].position = getPositionName(selectingPositionId.value);
+            }
+          }
+          isSelectingPlayer.value = false;
+          selectingPositionId.value = null;
         };
 
         const fillActiveStudentsToMatch = () => {
            activeStudents.value.forEach(s => {
               if(!matchForm.studentComments[s.id]) {
-                 matchForm.studentComments[s.id] = { position: s.position || '', comment: '' }; // 名簿のポジションを初期値に
+                 matchForm.studentComments[s.id] = { position: s.position || '', comment: '' };
               }
            });
+        };
+
+        const removeStudentFromMatch = (studentId) => {
+           delete matchForm.studentComments[studentId];
+           // ピッチからも消す
+           for (const posId in matchForm.lineup) {
+              if (matchForm.lineup[posId] === studentId) {
+                 delete matchForm.lineup[posId];
+              }
+           }
         };
 
         const addOpponentPlayer = () => {
@@ -1125,33 +1352,29 @@
               return;
             }
             
-            // どんなコピペの崩れにも対応できるよう、必要な項目だけを自動抽出
             const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
             const configObj = {};
             let isExtracted = true;
 
             for (const key of keys) {
-               // "apiKey": "..." などのパターンを抽出（全角クォートや余計な空白も許容）
                const regex = new RegExp(`["'“”]?${key}["'“”]?\\s*:\\s*["'“”]([^"'“”]+)["'“”]`);
                const match = configText.match(regex);
                if (match && match[1]) {
                  configObj[key] = match[1];
                } else {
-                 isExtracted = false; // 1つでも見つからなければ抽出失敗
+                 isExtracted = false; 
                  break;
                }
             }
 
             if (isExtracted) {
-              // 抽出成功
               localStorage.setItem('soccer_mgr_firebase_config', JSON.stringify(configObj, null, 2));
             } else {
-              // 抽出失敗時は一応JSONパースを試みる（フォールバック）
               configText = configText.replace(/[“”″]/g, '"')
                                      .replace(/[‘’′]/g, "'")
                                      .replace(/　/g, ' ')
-                                     .replace(/,\s*}/g, '}') // 末尾カンマ許容
-                                     .replace(/[\u200B-\u200D\uFEFF]/g, ''); // 見えない文字削除
+                                     .replace(/,\s*}/g, '}') 
+                                     .replace(/[\u200B-\u200D\uFEFF]/g, ''); 
               JSON.parse(configText); 
               localStorage.setItem('soccer_mgr_firebase_config', configText);
             }
@@ -1220,17 +1443,13 @@
             try {
               const data = JSON.parse(event.target.result);
               
-              // Restore Local State
               if(data.students) students.value = data.students;
               if(data.practices) practices.value = data.practices;
               if(data.matches) matches.value = data.matches;
               if(data.settings) Object.assign(settings, data.settings);
 
-              // Restore Cloud State (共有領域へ)
               if (user.value && db) {
                 const batch = writeBatch(db);
-                
-                // Add new documents to batch
                 if(data.students) data.students.forEach(s => batch.set(getPublicDoc('students', s.id), s));
                 if(data.practices) data.practices.forEach(p => batch.set(getPublicDoc('practices', p.id), p));
                 if(data.matches) data.matches.forEach(m => batch.set(getPublicDoc('matches', m.id), m));
@@ -1254,11 +1473,13 @@
 
         return {
           version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
-          students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, studentStats,
+          students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, getStudentShortName, getStudentNumber, studentStats,
           downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
           getWeekday, autoSetHoliday,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount,
-          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, addOpponentPlayer, removeOpponentPlayer,
+          isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
+          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer,
+          currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange,
           settings, newMenuName, addPracticeMenu, removePracticeMenu, saveSettings,
           customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig,
           exportJSON, importJSON
