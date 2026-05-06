@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.5</title>
+  <title>Soccer Team Manager v1.6</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -488,12 +488,13 @@
                 </h3>
                 <div class="mb-6 flex gap-4 items-center">
                   <label class="form-label mb-0">システム</label>
-                  <select v-model="matchForm.formation" class="form-input w-48">
+                  <select v-model="matchForm.formation" class="form-input w-48" @change="handleFormationChange">
                     <option value="4-4-2">4-4-2</option>
                     <option value="4-2-3-1">4-2-3-1</option>
                     <option value="4-3-3">4-3-3</option>
                     <option value="3-5-2">3-5-2</option>
                     <option value="3-4-3">3-4-3</option>
+                    <option value="5-1-3-1">5-1-3-1</option>
                     <option value="フリー">フリー (手動入力)</option>
                   </select>
                 </div>
@@ -561,6 +562,7 @@
                     <option value="4-3-3">4-3-3</option>
                     <option value="3-5-2">3-5-2</option>
                     <option value="3-4-3">3-4-3</option>
+                    <option value="5-1-3-1">5-1-3-1</option>
                     <option value="フリー">フリー (手動入力)</option>
                   </select>
                 </div>
@@ -840,13 +842,20 @@
          { id: 'mf1', name: 'SH', top: '45%', left: '15%' }, { id: 'mf2', name: 'CH', top: '45%', left: '35%' }, { id: 'mf3', name: 'CH', top: '45%', left: '65%' }, { id: 'mf4', name: 'SH', top: '45%', left: '85%' },
          { id: 'df1', name: 'CB', top: '75%', left: '25%' }, { id: 'df2', name: 'CB', top: '75%', left: '50%' }, { id: 'df3', name: 'CB', top: '75%', left: '75%' },
          { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '5-1-3-1': [
+         { id: 'fw1', name: 'CF', top: '10%', left: '50%' },
+         { id: 'mf1', name: 'SH', top: '30%', left: '20%' }, { id: 'mf2', name: 'OMF', top: '30%', left: '50%' }, { id: 'mf3', name: 'SH', top: '30%', left: '80%' },
+         { id: 'mf4', name: 'DMF', top: '50%', left: '50%' },
+         { id: 'df1', name: 'LWB', top: '70%', left: '15%' }, { id: 'df2', name: 'CB', top: '75%', left: '35%' }, { id: 'df3', name: 'CB', top: '75%', left: '50%' }, { id: 'df4', name: 'CB', top: '75%', left: '65%' }, { id: 'df5', name: 'RWB', top: '70%', left: '85%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
       ]
     };
 
     createApp({
       setup() {
         // --- System State ---
-        const version = "1.5.0";
+        const version = "1.6.0";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -969,7 +978,11 @@
 
         const currentOpponentFormationPositions = computed(() => {
           if (matchForm.opponentFormation === 'フリー' || !formations[matchForm.opponentFormation]) return [];
-          return formations[matchForm.opponentFormation];
+          return formations[matchForm.opponentFormation].map(pos => ({
+             ...pos,
+             top: `calc(100% - ${pos.top})`,
+             left: `calc(100% - ${pos.left})`
+          }));
         });
 
         const studentStats = computed(() => {
