@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.6</title>
+  <title>Soccer Team Manager v1.7</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -164,14 +164,26 @@
           </div>
 
           <div class="glass-panel rounded-2xl overflow-x-auto">
+            <div v-if="sortConfig.key" class="px-4 pt-3 flex justify-between items-center text-sm">
+              <span class="text-emerald-400"><i class="fa-solid fa-filter mr-1"></i>並び替え中...</span>
+              <button @click="resetSort" class="text-slate-400 hover:text-white transition underline underline-offset-2">初期状態に戻す</button>
+            </div>
             <table class="w-full text-left border-collapse min-w-[700px]">
               <thead>
-                <tr class="bg-slate-800/80 text-slate-400 text-sm uppercase tracking-wider">
+                <tr class="bg-slate-800/80 text-slate-400 text-sm uppercase tracking-wider select-none">
                   <th class="p-4 font-medium">名前</th>
-                  <th class="p-4 font-medium">学年</th>
-                  <th class="p-4 font-medium">背番号</th>
-                  <th class="p-4 font-medium">Pos</th>
-                  <th class="p-4 font-medium text-center">欠席 (平/休)</th>
+                  <th class="p-4 font-medium cursor-pointer hover:text-white group transition" @click="sortBy('grade')">
+                    学年 <i class="fa-solid ml-1 text-slate-600 group-hover:text-emerald-400" :class="sortConfig.key === 'grade' ? (sortConfig.order === 'asc' ? 'fa-sort-up text-emerald-400' : 'fa-sort-down text-emerald-400') : 'fa-sort'"></i>
+                  </th>
+                  <th class="p-4 font-medium cursor-pointer hover:text-white group transition" @click="sortBy('number')">
+                    背番号 <i class="fa-solid ml-1 text-slate-600 group-hover:text-emerald-400" :class="sortConfig.key === 'number' ? (sortConfig.order === 'asc' ? 'fa-sort-up text-emerald-400' : 'fa-sort-down text-emerald-400') : 'fa-sort'"></i>
+                  </th>
+                  <th class="p-4 font-medium cursor-pointer hover:text-white group transition" @click="sortBy('position')">
+                    Pos <i class="fa-solid ml-1 text-slate-600 group-hover:text-emerald-400" :class="sortConfig.key === 'position' ? (sortConfig.order === 'asc' ? 'fa-sort-up text-emerald-400' : 'fa-sort-down text-emerald-400') : 'fa-sort'"></i>
+                  </th>
+                  <th class="p-4 font-medium text-center cursor-pointer hover:text-white group transition" @click="sortBy('absent')">
+                    欠席 (平/休) <i class="fa-solid ml-1 text-slate-600 group-hover:text-emerald-400" :class="sortConfig.key === 'absent' ? (sortConfig.order === 'asc' ? 'fa-sort-up text-emerald-400' : 'fa-sort-down text-emerald-400') : 'fa-sort'"></i>
+                  </th>
                   <th class="p-4 font-medium">ステータス</th>
                   <th class="p-4 font-medium text-right">操作</th>
                 </tr>
@@ -253,29 +265,35 @@
             </div>
             <div class="grid gap-4">
               <div v-if="sortedPractices.length === 0" class="glass-panel p-8 text-center text-slate-500 rounded-2xl">記録がありません</div>
-              <div v-for="p in sortedPractices" :key="p.id" class="glass-panel rounded-xl p-5 hover:border-emerald-500/50 transition cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4" @click="editPractice(p)">
-                <div class="flex flex-col">
-                  <div class="flex items-center gap-3 mb-1">
-                    <span class="bg-emerald-600/20 text-emerald-400 font-mono px-2 py-1 rounded text-sm font-bold flex items-center gap-1">
-                      {{ p.date }} <span class="text-xs font-normal">({{ getWeekday(p.date) }})</span>
-                    </span>
-                    <span v-if="p.isHoliday" class="text-xs border border-amber-600/50 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">休日</span>
-                    <span v-if="p.weather" class="text-xs border border-slate-600 text-slate-400 px-1.5 py-0.5 rounded">{{ p.weather }}</span>
-                    <span class="text-slate-400 text-sm ml-1"><i class="fa-regular fa-clock mr-1"></i>{{ p.startTime }} - {{ p.endTime }}</span>
-                  </div>
-                  <div class="text-white font-medium mt-2">
-                    <template v-if="p.menus.length > 0">
-                      <span v-for="(m, i) in p.menus" :key="i" class="mr-1">
-                         {{ m }}<span v-if="i < p.menus.length - 1" class="text-slate-500 mx-1">→</span>
+              <div v-for="p in sortedPractices" :key="p.id" class="glass-panel rounded-xl overflow-hidden hover:border-emerald-500/50 transition cursor-pointer border border-transparent" @click="editPractice(p)">
+                <div class="p-5 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                  <div class="flex flex-col flex-1">
+                    <div class="flex items-center gap-3 mb-1">
+                      <span class="bg-emerald-600/20 text-emerald-400 font-mono px-2 py-1 rounded text-sm font-bold flex items-center gap-1">
+                        {{ p.date }} <span class="text-xs font-normal">({{ getWeekday(p.date) }})</span>
                       </span>
-                    </template>
-                    <template v-else>メニューなし</template>
+                      <span v-if="p.isHoliday" class="text-xs border border-amber-600/50 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">休日</span>
+                      <span v-if="p.weather" class="text-xs border border-slate-600 text-slate-400 px-1.5 py-0.5 rounded">{{ p.weather }}</span>
+                      <span class="text-slate-400 text-sm ml-1"><i class="fa-regular fa-clock mr-1"></i>{{ p.startTime }} - {{ p.endTime }}</span>
+                    </div>
+                    <div class="text-white font-medium mt-2">
+                      <template v-if="p.menus.length > 0">
+                        <span v-for="(m, i) in p.menus" :key="i" class="mr-1">
+                           {{ m }}<span v-if="i < p.menus.length - 1" class="text-slate-500 mx-1">→</span>
+                        </span>
+                      </template>
+                      <template v-else>メニューなし</template>
+                    </div>
+                  </div>
+                  <div class="flex gap-4 text-sm text-slate-400 bg-slate-800/50 p-3 rounded-lg md:w-64 shrink-0 h-fit">
+                     <div class="flex-1">出: <span class="text-emerald-400 font-bold">{{ getAttendanceCount(p, '出席') }}</span></div>
+                     <div class="flex-1">遅: <span class="text-blue-400 font-bold">{{ getAttendanceCount(p, '遅刻') }}</span></div>
+                     <div class="flex-1">欠: <span class="text-red-400 font-bold">{{ getAttendanceCount(p, '欠席') }}</span></div>
                   </div>
                 </div>
-                <div class="flex gap-4 text-sm text-slate-400 bg-slate-800/50 p-3 rounded-lg md:w-64 shrink-0">
-                   <div class="flex-1">出: <span class="text-emerald-400 font-bold">{{ getAttendanceCount(p, '出席') }}</span></div>
-                   <div class="flex-1">遅: <span class="text-blue-400 font-bold">{{ getAttendanceCount(p, '遅刻') }}</span></div>
-                   <div class="flex-1">欠: <span class="text-red-400 font-bold">{{ getAttendanceCount(p, '欠席') }}</span></div>
+                <!-- 反省文プレビュー -->
+                <div v-if="p.overallComment" class="bg-slate-900/50 px-5 py-3 border-t border-slate-700/50 text-sm">
+                  <div class="text-slate-400 line-clamp-2 leading-relaxed"><i class="fa-solid fa-comment-dots mr-2 text-slate-500"></i>{{ p.overallComment }}</div>
                 </div>
               </div>
             </div>
@@ -417,7 +435,10 @@
                  <div class="bg-slate-800/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
                    <div class="flex items-center gap-3">
                      <span class="bg-amber-500/20 text-amber-400 font-mono px-2 py-1 rounded text-sm font-bold flex items-center gap-1">{{ m.date }} <span class="text-xs font-normal">({{ getWeekday(m.date) }})</span></span>
-                     <span class="text-slate-300 font-medium border border-slate-600 px-2 py-0.5 rounded text-xs">{{ m.matchType }}</span>
+                     <span class="text-slate-300 font-medium border border-slate-600 px-2 py-0.5 rounded text-xs">
+                       {{ m.matchType }}
+                       <template v-if="m.matchType === '公式戦' && m.tournamentName"> - {{ m.tournamentName }}</template>
+                     </span>
                    </div>
                    <div class="text-slate-400 text-sm"><i class="fa-solid fa-location-dot mr-1"></i>{{ m.location }}</div>
                  </div>
@@ -436,6 +457,11 @@
                      <div class="text-xl font-bold text-amber-400 truncate">{{ m.opponent || '未設定' }}</div>
                    </div>
                  </div>
+                 <!-- 試合詳細・感想プレビュー -->
+                 <div v-if="m.scorers || m.overallComment" class="bg-slate-900/50 px-5 py-3 border-t border-slate-700/50 text-sm">
+                   <div v-if="m.scorers" class="text-emerald-400 mb-1"><i class="fa-solid fa-futbol mr-2 opacity-80"></i>得点: {{ m.scorers }}</div>
+                   <div v-if="m.overallComment" class="text-slate-400 line-clamp-2 leading-relaxed mt-1"><i class="fa-solid fa-comment-dots mr-2 text-slate-500"></i>{{ m.overallComment }}</div>
+                 </div>
                </div>
             </div>
           </div>
@@ -447,7 +473,14 @@
             
             <!-- Basic Info -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <div><label class="form-label">種別</label><select v-model="matchForm.matchType" class="form-input"><option>練習試合</option><option>公式戦</option><option>その他</option></select></div>
+              <div>
+                <label class="form-label">種別</label>
+                <select v-model="matchForm.matchType" class="form-input"><option>練習試合</option><option>公式戦</option><option>その他</option></select>
+              </div>
+              <div v-if="matchForm.matchType === '公式戦'" class="md:col-span-2 lg:col-span-1 fade-in">
+                <label class="form-label text-amber-400">大会名 <span class="text-xs font-normal text-slate-400">(任意)</span></label>
+                <input type="text" v-model="matchForm.tournamentName" class="form-input border-amber-500/50 focus:border-amber-500 bg-amber-900/10" placeholder="例: インターハイ予選">
+              </div>
               <div><label class="form-label">日付</label><input type="date" v-model="matchForm.date" class="form-input"></div>
               <div><label class="form-label">キックオフ</label><input type="time" v-model="matchForm.time" class="form-input"></div>
               <div><label class="form-label">対戦相手</label><input type="text" v-model="matchForm.opponent" class="form-input border-amber-500/50 focus:border-amber-500" placeholder="〇〇高校"></div>
@@ -855,7 +888,7 @@
     createApp({
       setup() {
         // --- System State ---
-        const version = "1.6.0";
+        const version = "1.7.0";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -882,6 +915,8 @@
         const showStudentModal = ref(false);
         const studentForm = reactive({ id: null, name: '', grade: 1, number: '', position: '', isGraduated: false });
         
+        const sortConfig = reactive({ key: null, order: 'asc' });
+
         const isEditingPracticeMenus = ref(false);
         const newPracticeMenuInput = ref('');
 
@@ -933,6 +968,7 @@
         const getEmptyMatchForm = () => ({
           id: null,
           matchType: '練習試合',
+          tournamentName: '',
           date: new Date().toISOString().split('T')[0],
           time: '10:00',
           opponent: '',
@@ -966,7 +1002,50 @@
 
         const activeStudents = computed(() => students.value.filter(s => !s.isGraduated).sort((a,b) => a.grade - b.grade));
         const obStudents = computed(() => students.value.filter(s => s.isGraduated).sort((a,b) => b.grade - a.grade));
-        const displayStudents = computed(() => studentTab.value === 'active' ? activeStudents.value : obStudents.value);
+        
+        // 欠席数の自動集計
+        const studentStats = computed(() => {
+          const stats = {};
+          students.value.forEach(s => { stats[s.id] = { weekdayAbsent: 0, holidayAbsent: 0 }; });
+          practices.value.forEach(p => {
+            if (!p.attendance) return;
+            const isHoliday = !!p.isHoliday;
+            for (const [studentId, att] of Object.entries(p.attendance)) {
+              if (stats[studentId] && att.status === '欠席') {
+                if (isHoliday) stats[studentId].holidayAbsent++;
+                else stats[studentId].weekdayAbsent++;
+              }
+            }
+          });
+          return stats;
+        });
+
+        const displayStudents = computed(() => {
+          let list = studentTab.value === 'active' ? activeStudents.value : obStudents.value;
+          if (!sortConfig.key) return list;
+
+          return [...list].sort((a, b) => {
+            let valA, valB;
+            if (sortConfig.key === 'grade') {
+              valA = a.grade; valB = b.grade;
+            } else if (sortConfig.key === 'number') {
+              valA = parseInt(a.number); valA = isNaN(valA) ? 9999 : valA;
+              valB = parseInt(b.number); valB = isNaN(valB) ? 9999 : valB;
+            } else if (sortConfig.key === 'position') {
+              valA = a.position || '\uFFFF';
+              valB = b.position || '\uFFFF';
+            } else if (sortConfig.key === 'absent') {
+              const statsA = studentStats.value[a.id] || { weekdayAbsent: 0, holidayAbsent: 0 };
+              const statsB = studentStats.value[b.id] || { weekdayAbsent: 0, holidayAbsent: 0 };
+              valA = statsA.weekdayAbsent + statsA.holidayAbsent;
+              valB = statsB.weekdayAbsent + statsB.holidayAbsent;
+            }
+
+            if (valA < valB) return sortConfig.order === 'asc' ? -1 : 1;
+            if (valA > valB) return sortConfig.order === 'asc' ? 1 : -1;
+            return 0;
+          });
+        });
         
         const sortedPractices = computed(() => [...practices.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
         const sortedMatches = computed(() => [...matches.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
@@ -983,22 +1062,6 @@
              top: `calc(100% - ${pos.top})`,
              left: `calc(100% - ${pos.left})`
           }));
-        });
-
-        const studentStats = computed(() => {
-          const stats = {};
-          students.value.forEach(s => { stats[s.id] = { weekdayAbsent: 0, holidayAbsent: 0 }; });
-          practices.value.forEach(p => {
-            if (!p.attendance) return;
-            const isHoliday = !!p.isHoliday;
-            for (const [studentId, att] of Object.entries(p.attendance)) {
-              if (stats[studentId] && att.status === '欠席') {
-                if (isHoliday) stats[studentId].holidayAbsent++;
-                else stats[studentId].weekdayAbsent++;
-              }
-            }
-          });
-          return stats;
         });
 
         // --- Firebase Init ---
@@ -1103,6 +1166,19 @@
         };
 
         // --- Student Methods ---
+        const sortBy = (key) => {
+          if (sortConfig.key === key) {
+            sortConfig.order = sortConfig.order === 'asc' ? 'desc' : 'asc';
+          } else {
+            sortConfig.key = key;
+            sortConfig.order = 'asc';
+          }
+        };
+        const resetSort = () => {
+          sortConfig.key = null;
+          sortConfig.order = 'asc';
+        };
+
         const downloadCSVTemplate = () => {
           const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
           const content = '名前,学年,背番号,ポジション\n山田太郎,2,10,FW\n鈴木一郎,1,15,MF\n';
@@ -1525,6 +1601,7 @@
         return {
           version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
           students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, getStudentShortName, getStudentNumber, studentStats,
+          sortConfig, sortBy, resetSort,
           downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
           getWeekday, autoSetHoliday,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount,
