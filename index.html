@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.8</title>
+  <title>Soccer Team Manager v1.9</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -891,7 +891,6 @@
     const { createApp, ref, reactive, computed, onMounted } = Vue;
 
     // --- フォーメーション定義 ---
-    // top: 上(敵陣)からの割合, left: 左からの割合
     const formations = {
       '4-4-2': [
         { id: 'fw1', name: 'FW', top: '15%', left: '35%' }, { id: 'fw2', name: 'FW', top: '15%', left: '65%' },
@@ -936,16 +935,15 @@
 
     createApp({
       setup() {
-        // --- System State ---
-        const version = "1.8.0";
+        const version = "1.9.0";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
         const user = ref(null);
         let db = null;
-        let appId = typeof __app_id !== 'undefined' ? __app_id : 'soccer-manager-v1';
+        // 保存先をシステム環境変数から取得（権限エラーを回避）
+        let appId = typeof __app_id !== 'undefined' ? __app_id : 'soccer-manager-final'; 
 
-        // --- App Data State ---
         const students = ref([]);
         const practices = ref([]);
         const matches = ref([]);
@@ -954,10 +952,9 @@
           defaultStartTime: '16:00',
           defaultEndTime: '18:30',
           practiceMenus: ['アップ', 'パスコン', 'シュート', 'ミニゲーム'],
-          savedLineups: [] // { id, name, formation, lineup }
+          savedLineups: [] 
         });
 
-        // --- UI State ---
         const studentTab = ref('active');
         const isEditingPractice = ref(false);
         const isEditingMatch = ref(false);
@@ -967,39 +964,30 @@
         const studentForm = reactive({ id: null, name: '', grade: 1, number: '', position: '', isGraduated: false });
         
         const sortConfig = reactive({ key: null, order: 'asc' });
-
         const isEditingPracticeMenus = ref(false);
         const newPracticeMenuInput = ref('');
-
         const isSelectingPlayer = ref(false);
         const selectingPositionId = ref(null);
         const showLoadLineupModal = ref(false);
-
         const isSelectingOpponentPlayer = ref(false);
         const selectingOpponentPositionId = ref(null);
         const opponentPlayerForm = reactive({ number: '', name: '', features: '' });
 
-        // --- Firebase Config State ---
         const customFirebaseEnabled = ref(false);
         const firebaseConfigInput = ref('');
 
-        // --- Database Path Helpers ---
-        // ここが元の「チーム共有の引き出し」を参照するように修正
         const getPublicCollection = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
         const getPublicDoc = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
 
-        // --- Utils ---
         const getWeekday = (dateString) => {
           if (!dateString) return '';
           const days = ['日', '月', '火', '水', '木', '金', '土'];
-          const date = new Date(dateString);
-          return days[date.getDay()];
+          return days[new Date(dateString).getDay()];
         };
 
         const autoSetHoliday = () => {
           if (!practiceForm.date) return;
-          const date = new Date(practiceForm.date);
-          const day = date.getDay();
+          const day = new Date(practiceForm.date).getDay();
           practiceForm.isHoliday = (day === 0 || day === 6);
         };
 
@@ -1009,76 +997,29 @@
            return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
         };
 
-        // --- Forms ---
-        const getEmptyPracticeForm = () => ({
-          id: null,
-          date: new Date().toISOString().split('T')[0],
-          startTime: settings.defaultStartTime,
-          endTime: settings.defaultEndTime,
-          menus: [],
-          weather: '晴れ',
-          isHoliday: false,
-          attendance: {},
-          overallComment: ''
-        });
+        const getEmptyPracticeForm = () => ({ id: null, date: new Date().toISOString().split('T')[0], startTime: settings.defaultStartTime, endTime: settings.defaultEndTime, menus: [], weather: '晴れ', isHoliday: false, attendance: {}, overallComment: '' });
         const practiceForm = reactive(getEmptyPracticeForm());
 
-        const getEmptyMatchForm = () => ({
-          id: null,
-          matchType: '練習試合',
-          tournamentName: '',
-          date: new Date().toISOString().split('T')[0],
-          time: '10:00',
-          opponent: '',
-          location: '',
-          weather: '晴れ',
-          referee: '',
-          scoreUs: 0,
-          scoreThem: 0,
-          scorers: '',
-          formation: '4-2-3-1',
-          customFormation: '',
-          lineup: {}, 
-          opponentFormation: '4-4-2',
-          customOpponentFormation: '',
-          opponentLineup: {}, // { 'fw1': { number, name, features } }
-          opponentPlayers: [], // { number, name, features }
-          studentComments: {},
-          overallComment: ''
-        });
+        const getEmptyMatchForm = () => ({ id: null, matchType: '練習試合', tournamentName: '', date: new Date().toISOString().split('T')[0], time: '10:00', opponent: '', location: '', weather: '晴れ', referee: '', scoreUs: 0, scoreThem: 0, scorers: '', formation: '4-2-3-1', customFormation: '', lineup: {}, opponentFormation: '4-4-2', customOpponentFormation: '', opponentLineup: {}, opponentPlayers: [], studentComments: {}, overallComment: '' });
         const matchForm = reactive(getEmptyMatchForm());
 
-        const getEmptyMemoForm = () => ({
-          id: null,
-          title: '',
-          content: '',
-          updatedAt: null
-        });
+        const getEmptyMemoForm = () => ({ id: null, title: '', content: '', updatedAt: null });
         const memoForm = reactive(getEmptyMemoForm());
 
-        // --- Computed ---
-        const viewTitle = computed(() => {
-          const titles = { dashboard: 'ダッシュボード', students: '名簿・生徒管理', practice: '練習記録', match: '試合記録', memo: 'メモ', settings: '設定・データ' };
-          return titles[currentView.value];
-        });
-        const viewSubtitle = computed(() => {
-           const subs = { dashboard: 'チームの現状を一目で確認', students: '部員の登録・更新・状態管理', practice: '日々の練習メニューと出席状況', match: '対戦結果・フォーメーション分析', memo: '日々の気づきやアイデアを記録', settings: 'アプリの基本設定とバックアップ' };
-           return subs[currentView.value];
-        });
+        const viewTitle = computed(() => ({ dashboard: 'ダッシュボード', students: '名簿・生徒管理', practice: '練習記録', match: '試合記録', memo: 'メモ', settings: '設定・データ' }[currentView.value]));
+        const viewSubtitle = computed(() => ({ dashboard: 'チームの現状を一目で確認', students: '部員の登録・更新・状態管理', practice: '日々の練習メニューと出席状況', match: '対戦結果・フォーメーション分析', memo: '日々の気づきやアイデアを記録', settings: 'アプリの基本設定とバックアップ' }[currentView.value]));
 
         const activeStudents = computed(() => students.value.filter(s => !s.isGraduated).sort((a,b) => a.grade - b.grade));
         const obStudents = computed(() => students.value.filter(s => s.isGraduated).sort((a,b) => b.grade - a.grade));
         
-        // 欠席数の自動集計
         const studentStats = computed(() => {
           const stats = {};
           students.value.forEach(s => { stats[s.id] = { weekdayAbsent: 0, holidayAbsent: 0 }; });
           practices.value.forEach(p => {
             if (!p.attendance) return;
-            const isHoliday = !!p.isHoliday;
             for (const [studentId, att] of Object.entries(p.attendance)) {
               if (stats[studentId] && att.status === '欠席') {
-                if (isHoliday) stats[studentId].holidayAbsent++;
+                if (p.isHoliday) stats[studentId].holidayAbsent++;
                 else stats[studentId].weekdayAbsent++;
               }
             }
@@ -1089,24 +1030,12 @@
         const displayStudents = computed(() => {
           let list = studentTab.value === 'active' ? activeStudents.value : obStudents.value;
           if (!sortConfig.key) return list;
-
           return [...list].sort((a, b) => {
             let valA, valB;
-            if (sortConfig.key === 'grade') {
-              valA = a.grade; valB = b.grade;
-            } else if (sortConfig.key === 'number') {
-              valA = parseInt(a.number); valA = isNaN(valA) ? 9999 : valA;
-              valB = parseInt(b.number); valB = isNaN(valB) ? 9999 : valB;
-            } else if (sortConfig.key === 'position') {
-              valA = a.position || '\uFFFF';
-              valB = b.position || '\uFFFF';
-            } else if (sortConfig.key === 'absent') {
-              const statsA = studentStats.value[a.id] || { weekdayAbsent: 0, holidayAbsent: 0 };
-              const statsB = studentStats.value[b.id] || { weekdayAbsent: 0, holidayAbsent: 0 };
-              valA = statsA.weekdayAbsent + statsA.holidayAbsent;
-              valB = statsB.weekdayAbsent + statsB.holidayAbsent;
-            }
-
+            if (sortConfig.key === 'grade') { valA = a.grade; valB = b.grade; } 
+            else if (sortConfig.key === 'number') { valA = parseInt(a.number); valA = isNaN(valA) ? 9999 : valA; valB = parseInt(b.number); valB = isNaN(valB) ? 9999 : valB; } 
+            else if (sortConfig.key === 'position') { valA = a.position || '\uFFFF'; valB = b.position || '\uFFFF'; } 
+            else if (sortConfig.key === 'absent') { const sA = studentStats.value[a.id]||{weekdayAbsent:0,holidayAbsent:0}; const sB = studentStats.value[b.id]||{weekdayAbsent:0,holidayAbsent:0}; valA = sA.weekdayAbsent + sA.holidayAbsent; valB = sB.weekdayAbsent + sB.holidayAbsent; }
             if (valA < valB) return sortConfig.order === 'asc' ? -1 : 1;
             if (valA > valB) return sortConfig.order === 'asc' ? 1 : -1;
             return 0;
@@ -1117,21 +1046,12 @@
         const sortedMatches = computed(() => [...matches.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
         const sortedMemos = computed(() => [...memos.value].sort((a, b) => b.updatedAt - a.updatedAt));
 
-        const currentFormationPositions = computed(() => {
-          if (matchForm.formation === 'フリー' || !formations[matchForm.formation]) return [];
-          return formations[matchForm.formation];
-        });
-
+        const currentFormationPositions = computed(() => (matchForm.formation === 'フリー' || !formations[matchForm.formation]) ? [] : formations[matchForm.formation]);
         const currentOpponentFormationPositions = computed(() => {
           if (matchForm.opponentFormation === 'フリー' || !formations[matchForm.opponentFormation]) return [];
-          return formations[matchForm.opponentFormation].map(pos => ({
-             ...pos,
-             top: `calc(100% - ${pos.top})`,
-             left: `calc(100% - ${pos.left})`
-          }));
+          return formations[matchForm.opponentFormation].map(pos => ({ ...pos, top: `calc(100% - ${pos.top})`, left: `calc(100% - ${pos.left})` }));
         });
 
-        // --- Firebase Init ---
         onMounted(() => {
           const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
           if (storedConfig) { firebaseConfigInput.value = storedConfig; }
@@ -1142,22 +1062,13 @@
           try {
             let configObj = null;
             const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
-
             if (storedConfig) {
-               try {
-                 configObj = JSON.parse(storedConfig);
-                 customFirebaseEnabled.value = true;
-               } catch(e) { console.error("Config parse error"); }
+               try { configObj = JSON.parse(storedConfig); customFirebaseEnabled.value = true; } catch(e) {}
             } 
-            else if (typeof __firebase_config !== 'undefined') {
-              configObj = JSON.parse(__firebase_config);
-            }
+            else if (typeof __firebase_config !== 'undefined') { configObj = JSON.parse(__firebase_config); }
 
             if (!configObj) {
-              console.warn("ローカル環境での動作です。クラウド同期は無効化されます。");
-              loadingAuth.value = false;
-              loadingData.value = false;
-              user.value = { uid: 'local-offline-user' };
+              loadingAuth.value = false; loadingData.value = false; user.value = { uid: 'local-offline-user' };
               return;
             }
 
@@ -1166,29 +1077,18 @@
             db = getFirestore(app);
 
             const initAuth = async () => {
-              if (customFirebaseEnabled.value) {
-                await signInAnonymously(auth);
-              } else if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-              } else {
-                await signInAnonymously(auth);
-              }
+              if (customFirebaseEnabled.value) { await signInAnonymously(auth); } 
+              else if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
+              else { await signInAnonymously(auth); }
             };
             await initAuth();
 
             onAuthStateChanged(auth, (u) => {
-              user.value = u;
-              loadingAuth.value = false;
+              user.value = u; loadingAuth.value = false;
               if (u) loadData();
             });
-
           } catch (e) {
-            console.error("Firebase Initialization Error:", e);
-            loadingAuth.value = false;
-            loadingData.value = false;
-            customFirebaseEnabled.value = false;
-            user.value = { uid: 'local-offline-user' };
-            alert("データベースの接続に失敗しました。設定JSONが正しいか確認してください。\nローカルモードで起動します。");
+            loadingAuth.value = false; loadingData.value = false; customFirebaseEnabled.value = false; user.value = { uid: 'local-offline-user' };
           }
         };
 
@@ -1196,95 +1096,53 @@
           if (!user.value || !db) { loadingData.value = false; return; }
           loadingData.value = true;
           try {
-            const sSnap = await getDocs(getPublicCollection('students'));
-            students.value = sSnap.docs.map(d => d.data());
-
-            const pSnap = await getDocs(getPublicCollection('practices'));
-            practices.value = pSnap.docs.map(d => d.data());
-
-            const mSnap = await getDocs(getPublicCollection('matches'));
-            matches.value = mSnap.docs.map(d => d.data());
-            
-            const memoSnap = await getDocs(getPublicCollection('memos'));
-            memos.value = memoSnap.docs.map(d => d.data());
-
+            const sSnap = await getDocs(getPublicCollection('students')); students.value = sSnap.docs.map(d => d.data());
+            const pSnap = await getDocs(getPublicCollection('practices')); practices.value = pSnap.docs.map(d => d.data());
+            const mSnap = await getDocs(getPublicCollection('matches')); matches.value = mSnap.docs.map(d => d.data());
+            const memoSnap = await getDocs(getPublicCollection('memos')); memos.value = memoSnap.docs.map(d => d.data());
             const setSnap = await getDocs(getPublicCollection('settings'));
             if (!setSnap.empty) {
                const settingsDoc = setSnap.docs.find(d => d.id === 'app_settings');
                if(settingsDoc) {
                  const savedSettings = settingsDoc.data();
-                 if(!savedSettings.savedLineups) savedSettings.savedLineups = []; // 互換性
+                 if(!savedSettings.savedLineups) savedSettings.savedLineups = [];
                  Object.assign(settings, savedSettings);
                }
             }
-          } catch (error) {
-            console.error("Error loading data:", error);
-          } finally {
-            loadingData.value = false;
-          }
+          } catch (error) { console.error("Error loading data:", error); } 
+          finally { loadingData.value = false; }
         };
 
         const saveToCloud = async (colName, id, data) => {
           if (!user.value || !db) return;
-          try { await setDoc(getPublicDoc(colName, id), data); } 
-          catch (e) { console.error("Save error", e); alert("保存に失敗しました。"); }
+          try { await setDoc(getPublicDoc(colName, id), data); } catch (e) { alert("保存に失敗しました。"); }
         };
         const deleteFromCloud = async (colName, id) => {
           if (!user.value || !db) return;
-          try { await deleteDoc(getPublicDoc(colName, id)); } 
-          catch (e) { console.error("Delete error", e); }
+          try { await deleteDoc(getPublicDoc(colName, id)); } catch (e) {}
         };
 
-        // --- Student Methods ---
-        const sortBy = (key) => {
-          if (sortConfig.key === key) {
-            sortConfig.order = sortConfig.order === 'asc' ? 'desc' : 'asc';
-          } else {
-            sortConfig.key = key;
-            sortConfig.order = 'asc';
-          }
-        };
-        const resetSort = () => {
-          sortConfig.key = null;
-          sortConfig.order = 'asc';
-        };
-
+        const sortBy = (key) => { if (sortConfig.key === key) { sortConfig.order = sortConfig.order === 'asc' ? 'desc' : 'asc'; } else { sortConfig.key = key; sortConfig.order = 'asc'; } };
+        const resetSort = () => { sortConfig.key = null; sortConfig.order = 'asc'; };
         const downloadCSVTemplate = () => {
           const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-          const content = '名前,学年,背番号,ポジション\n山田太郎,2,10,FW\n鈴木一郎,1,15,MF\n';
-          const blob = new Blob([bom, content], { type: 'text/csv' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'students_template.csv';
-          a.click();
-          URL.revokeObjectURL(url);
+          const blob = new Blob([bom, '名前,学年,背番号,ポジション\n山田太郎,2,10,FW\n鈴木一郎,1,15,MF\n'], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'students_template.csv'; a.click(); URL.revokeObjectURL(url);
         };
-
         const importStudentsCSV = (e) => {
-          const file = e.target.files[0];
-          if(!file) return;
-          const reader = new FileReader();
+          const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
           reader.onload = async (event) => {
             loadingData.value = true;
             try {
-              const text = event.target.result;
-              const lines = text.split('\n').filter(l => l.trim() !== '');
-              let batch = null;
-              if (db && user.value) batch = writeBatch(db);
-              
+              const lines = event.target.result.split('\n').filter(l => l.trim() !== '');
+              let batch = (db && user.value) ? writeBatch(db) : null;
               let count = 0;
               lines.forEach((line, index) => {
                 if (index === 0 && line.includes('名前')) return; 
                 const parts = line.split(',');
-                const name = parts[0]?.trim();
-                const gradeStr = parts[1]?.trim();
-                const number = parts[2]?.trim() || '';
-                const position = parts[3]?.trim() || '';
-
-                if(name) {
+                if(parts[0]?.trim()) {
                   const sId = crypto.randomUUID();
-                  const student = { id: sId, name, grade: parseInt(gradeStr) || 1, number, position, isGraduated: false, createdAt: Date.now() };
+                  const student = { id: sId, name: parts[0].trim(), grade: parseInt(parts[1]?.trim()) || 1, number: parts[2]?.trim() || '', position: parts[3]?.trim() || '', isGraduated: false, createdAt: Date.now() };
                   students.value.push(student);
                   if (batch) batch.set(getPublicDoc('students', sId), student);
                   count++;
@@ -1292,17 +1150,11 @@
               });
               if(batch && user.value) await batch.commit();
               alert(`${count}名の生徒をインポートしました。`);
-            } catch (err) { 
-              console.error(err); 
-              alert("エラーが発生しました。"); 
-            } finally {
-              loadingData.value = false;
-              e.target.value = '';
-            }
+            } catch (err) { alert("エラーが発生しました。"); } 
+            finally { loadingData.value = false; e.target.value = ''; }
           };
           reader.readAsText(file);
         };
-
         const openAddStudentModal = () => { Object.assign(studentForm, { id: null, name: '', grade: 1, number: '', position: '', isGraduated: false }); showStudentModal.value = true; };
         const editStudent = (s) => { Object.assign(studentForm, JSON.parse(JSON.stringify(s))); showStudentModal.value = true; };
         const saveStudent = async () => {
@@ -1311,380 +1163,162 @@
           const isNew = !studentForm.id;
           if (isNew) { studentForm.id = crypto.randomUUID(); studentForm.createdAt = Date.now(); }
           const dataToSave = JSON.parse(JSON.stringify(studentForm));
-          
-          if (isNew) students.value.push(dataToSave);
-          else {
-            const idx = students.value.findIndex(s => s.id === dataToSave.id);
-            if(idx !== -1) students.value[idx] = dataToSave;
-          }
+          if (isNew) students.value.push(dataToSave); else { const idx = students.value.findIndex(s => s.id === dataToSave.id); if(idx !== -1) students.value[idx] = dataToSave; }
           showStudentModal.value = false;
           await saveToCloud('students', dataToSave.id, dataToSave);
           loadingData.value = false;
         };
-
-        const deleteStudent = async (id) => {
-          if(confirm("削除しますか？")) {
-             students.value = students.value.filter(s => s.id !== id);
-             await deleteFromCloud('students', id);
-          }
-        };
-
+        const deleteStudent = async (id) => { if(confirm("削除しますか？")) { students.value = students.value.filter(s => s.id !== id); await deleteFromCloud('students', id); } };
         const updateAcademicYear = async () => {
           if(!confirm("年度更新を実行しますか？")) return;
           loadingData.value = true;
           try {
-            let batch = null;
-            if (db && user.value) batch = writeBatch(db);
-
+            let batch = (db && user.value) ? writeBatch(db) : null;
             students.value.forEach(s => {
-               if(!s.isGraduated) {
-                 s.grade += 1;
-                 if(s.grade > 3) s.isGraduated = true; 
-                 if (batch) batch.set(getPublicDoc('students', s.id), s);
-               }
+               if(!s.isGraduated) { s.grade += 1; if(s.grade > 3) s.isGraduated = true; if (batch) batch.set(getPublicDoc('students', s.id), s); }
             });
-            if(batch && user.value) await batch.commit();
-            alert("更新が完了しました。");
-          } catch(e) { console.error(e); } 
-          finally { loadingData.value = false; }
+            if(batch && user.value) await batch.commit(); alert("更新が完了しました。");
+          } catch(e) {} finally { loadingData.value = false; }
         };
-
         const getStudentName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name : '不明'; };
         const getStudentNumber = (id) => { const s = students.value.find(st => st.id === id); return s && s.number ? s.number : ''; };
-        const getStudentShortName = (id) => {
-          const s = students.value.find(st => st.id === id);
-          if (!s) return '';
-          return s.name.split(' ')[0].split('　')[0].substring(0, 4);
-        };
+        const getStudentShortName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name.split(' ')[0].split('　')[0].substring(0, 4) : ''; };
 
-        // --- Practice Methods ---
         const openPracticeForm = () => {
-          Object.assign(practiceForm, getEmptyPracticeForm());
-          autoSetHoliday();
+          Object.assign(practiceForm, getEmptyPracticeForm()); autoSetHoliday();
           activeStudents.value.forEach(s => { practiceForm.attendance[s.id] = { status: '出席', comment: '' }; });
-          isEditingPracticeMenus.value = false;
-          isEditingPractice.value = true;
+          isEditingPracticeMenus.value = false; isEditingPractice.value = true;
         };
-
         const editPractice = (p) => {
           Object.assign(practiceForm, JSON.parse(JSON.stringify(p))); 
           if (!practiceForm.weather) practiceForm.weather = '晴れ';
-          if (typeof practiceForm.isHoliday === 'undefined') {
-              const date = new Date(practiceForm.date);
-              practiceForm.isHoliday = (date.getDay() === 0 || date.getDay() === 6);
-          }
-          activeStudents.value.forEach(s => {
-             if(!practiceForm.attendance[s.id]) practiceForm.attendance[s.id] = { status: '出席', comment: '' };
-          });
-          isEditingPracticeMenus.value = false;
-          isEditingPractice.value = true;
+          if (typeof practiceForm.isHoliday === 'undefined') { practiceForm.isHoliday = (new Date(practiceForm.date).getDay() === 0 || new Date(practiceForm.date).getDay() === 6); }
+          activeStudents.value.forEach(s => { if(!practiceForm.attendance[s.id]) practiceForm.attendance[s.id] = { status: '出席', comment: '' }; });
+          isEditingPracticeMenus.value = false; isEditingPractice.value = true;
         };
-
         const setAttendance = (studentId, status) => { if(practiceForm.attendance[studentId]) practiceForm.attendance[studentId].status = status; };
-        const getAttendanceCount = (practice, status) => {
-          if(!practice.attendance) return 0;
-          return Object.values(practice.attendance).filter(a => a.status === status).length;
-        };
-
+        const getAttendanceCount = (practice, status) => { return !practice.attendance ? 0 : Object.values(practice.attendance).filter(a => a.status === status).length; };
         const addMenuToPractice = (menu) => { practiceForm.menus.push(menu); };
         const removeMenuFromPractice = (index) => { practiceForm.menus.splice(index, 1); };
-        const addSettingMenuInline = () => {
-          const val = newPracticeMenuInput.value.trim();
-          if(val && !settings.practiceMenus.includes(val)) {
-            settings.practiceMenus.push(val);
-            newPracticeMenuInput.value = '';
-            saveSettings(); 
-          }
-        };
-        const deleteSettingMenu = (index) => {
-          if(confirm("削除しますか？")) { settings.practiceMenus.splice(index, 1); saveSettings(); }
-        };
-
+        const addSettingMenuInline = () => { const val = newPracticeMenuInput.value.trim(); if(val && !settings.practiceMenus.includes(val)) { settings.practiceMenus.push(val); newPracticeMenuInput.value = ''; saveSettings(); } };
+        const deleteSettingMenu = (index) => { if(confirm("削除しますか？")) { settings.practiceMenus.splice(index, 1); saveSettings(); } };
         const savePractice = async () => {
           if (!practiceForm.date) { alert("日付を入力してください"); return; }
-          const isNew = !practiceForm.id;
-          if (isNew) practiceForm.id = crypto.randomUUID();
+          const isNew = !practiceForm.id; if (isNew) practiceForm.id = crypto.randomUUID();
           const dataToSave = JSON.parse(JSON.stringify(practiceForm));
-          
-          if (isNew) practices.value.push(dataToSave);
-          else {
-            const idx = practices.value.findIndex(p => p.id === dataToSave.id);
-            if(idx !== -1) practices.value[idx] = dataToSave;
-          }
-          isEditingPractice.value = false;
-          await saveToCloud('practices', dataToSave.id, dataToSave);
+          if (isNew) practices.value.push(dataToSave); else { const idx = practices.value.findIndex(p => p.id === dataToSave.id); if(idx !== -1) practices.value[idx] = dataToSave; }
+          isEditingPractice.value = false; await saveToCloud('practices', dataToSave.id, dataToSave);
         };
-        const deletePractice = async (id) => {
-          if(confirm("削除しますか？")) {
-             practices.value = practices.value.filter(p => p.id !== id);
-             isEditingPractice.value = false;
-             await deleteFromCloud('practices', id);
-          }
-        };
+        const deletePractice = async (id) => { if(confirm("削除しますか？")) { practices.value = practices.value.filter(p => p.id !== id); isEditingPractice.value = false; await deleteFromCloud('practices', id); } };
 
-        // --- Match & Formation Methods ---
         const openMatchForm = () => { Object.assign(matchForm, getEmptyMatchForm()); isEditingMatch.value = true; };
         const editMatch = (m) => {
           Object.assign(matchForm, JSON.parse(JSON.stringify(m)));
-          // 古いデータのフォールバック（デバッグ）
-          if(!matchForm.opponentPlayers) matchForm.opponentPlayers = [];
-          if(!matchForm.studentComments) matchForm.studentComments = {};
-          if(!matchForm.lineup) matchForm.lineup = {};
-          if(!matchForm.formation) matchForm.formation = '4-2-3-1'; 
-          if(!matchForm.opponentFormation) matchForm.opponentFormation = '4-4-2';
-          if(!matchForm.opponentLineup) matchForm.opponentLineup = {};
+          if(!matchForm.opponentPlayers) matchForm.opponentPlayers = []; if(!matchForm.studentComments) matchForm.studentComments = {}; if(!matchForm.lineup) matchForm.lineup = {};
+          if(!matchForm.formation) matchForm.formation = '4-2-3-1'; if(!matchForm.opponentFormation) matchForm.opponentFormation = '4-4-2'; if(!matchForm.opponentLineup) matchForm.opponentLineup = {};
           isEditingMatch.value = true;
         };
-
         const handleFormationChange = () => {};
-
-        const getPositionName = (posId) => {
-          const p = currentFormationPositions.value.find(pos => pos.id === posId) || currentOpponentFormationPositions.value.find(pos => pos.id === posId);
-          return p ? p.name : '';
-        };
-
+        const getPositionName = (posId) => { const p = currentFormationPositions.value.find(pos => pos.id === posId) || currentOpponentFormationPositions.value.find(pos => pos.id === posId); return p ? p.name : ''; };
         const openPlayerSelect = (posId) => { selectingPositionId.value = posId; isSelectingPlayer.value = true; };
         const selectPlayerForPosition = (studentId) => {
-          if (studentId === null) {
-            delete matchForm.lineup[selectingPositionId.value];
-          } else {
-            matchForm.lineup[selectingPositionId.value] = studentId;
-            const posName = getPositionName(selectingPositionId.value);
-            if (!matchForm.studentComments[studentId]) {
-               matchForm.studentComments[studentId] = { position: posName, comment: '' };
-            } else {
-               matchForm.studentComments[studentId].position = posName;
-            }
+          if (studentId === null) { delete matchForm.lineup[selectingPositionId.value]; } 
+          else {
+            matchForm.lineup[selectingPositionId.value] = studentId; const posName = getPositionName(selectingPositionId.value);
+            if (!matchForm.studentComments[studentId]) { matchForm.studentComments[studentId] = { position: posName, comment: '' }; } else { matchForm.studentComments[studentId].position = posName; }
           }
-          isSelectingPlayer.value = false;
-          selectingPositionId.value = null;
+          isSelectingPlayer.value = false; selectingPositionId.value = null;
         };
-
-        const fillActiveStudentsToMatch = () => {
-           activeStudents.value.forEach(s => {
-              if(!matchForm.studentComments[s.id]) matchForm.studentComments[s.id] = { position: s.position || '', comment: '' };
-           });
-        };
-        const removeStudentFromMatch = (studentId) => {
-           delete matchForm.studentComments[studentId];
-           for (const posId in matchForm.lineup) {
-              if (matchForm.lineup[posId] === studentId) delete matchForm.lineup[posId];
-           }
-        };
-
-        // スタメン保存・読込
+        const fillActiveStudentsToMatch = () => { activeStudents.value.forEach(s => { if(!matchForm.studentComments[s.id]) matchForm.studentComments[s.id] = { position: s.position || '', comment: '' }; }); };
+        const removeStudentFromMatch = (studentId) => { delete matchForm.studentComments[studentId]; for (const posId in matchForm.lineup) { if (matchForm.lineup[posId] === studentId) delete matchForm.lineup[posId]; } };
         const saveCurrentLineup = () => {
-          const name = prompt("現在のスタメンに名前を付けて保存します。\n(例: Aチーム, 3年主体 等)");
+          const name = prompt("現在のスタメンに名前を付けて保存します。\n(例: Aチーム)");
           if (!name) return;
           if (!settings.savedLineups) settings.savedLineups = [];
-          settings.savedLineups.push({
-            id: crypto.randomUUID(),
-            name: name,
-            formation: matchForm.formation,
-            lineup: JSON.parse(JSON.stringify(matchForm.lineup))
-          });
-          saveSettings();
-          alert("保存しました！「読込」から呼び出せます。");
+          settings.savedLineups.push({ id: crypto.randomUUID(), name: name, formation: matchForm.formation, lineup: JSON.parse(JSON.stringify(matchForm.lineup)) });
+          saveSettings(); alert("保存しました！");
         };
-
         const loadLineup = (lu) => {
-          if (!confirm(`「${lu.name}」を読み込みますか？\n現在配置されている選手は上書きされます。`)) return;
-          matchForm.formation = lu.formation;
-          matchForm.lineup = JSON.parse(JSON.stringify(lu.lineup));
-          // studentComments を更新
+          if (!confirm(`「${lu.name}」を読み込みますか？`)) return;
+          matchForm.formation = lu.formation; matchForm.lineup = JSON.parse(JSON.stringify(lu.lineup));
           for (const posId in matchForm.lineup) {
-             const studentId = matchForm.lineup[posId];
-             const posName = getPositionName(posId) || '';
-             if (!matchForm.studentComments[studentId]) {
-                matchForm.studentComments[studentId] = { position: posName, comment: '' };
-             } else {
-                matchForm.studentComments[studentId].position = posName;
-             }
+             const studentId = matchForm.lineup[posId]; const posName = getPositionName(posId) || '';
+             if (!matchForm.studentComments[studentId]) { matchForm.studentComments[studentId] = { position: posName, comment: '' }; } else { matchForm.studentComments[studentId].position = posName; }
           }
           showLoadLineupModal.value = false;
         };
+        const deleteSavedLineup = (id) => { if(!confirm("削除しますか？")) return; settings.savedLineups = settings.savedLineups.filter(lu => lu.id !== id); saveSettings(); };
 
-        const deleteSavedLineup = (id) => {
-          if(!confirm("この保存済みスタメンを削除しますか？")) return;
-          settings.savedLineups = settings.savedLineups.filter(lu => lu.id !== id);
-          saveSettings();
-        };
-
-        // 相手チームメソッド
         const openOpponentPlayerSelect = (posId) => {
           selectingOpponentPositionId.value = posId;
           const current = matchForm.opponentLineup[posId];
-          if (current) {
-            Object.assign(opponentPlayerForm, JSON.parse(JSON.stringify(current)));
-          } else {
-            Object.assign(opponentPlayerForm, { number: '', name: '', features: '' });
-          }
+          if (current) Object.assign(opponentPlayerForm, JSON.parse(JSON.stringify(current))); else Object.assign(opponentPlayerForm, { number: '', name: '', features: '' });
           isSelectingOpponentPlayer.value = true;
         };
-        const saveOpponentPlayerForPosition = () => {
-          matchForm.opponentLineup[selectingOpponentPositionId.value] = JSON.parse(JSON.stringify(opponentPlayerForm));
-          isSelectingOpponentPlayer.value = false;
-          selectingOpponentPositionId.value = null;
-        };
-        const removeOpponentPlayerForPosition = () => {
-          delete matchForm.opponentLineup[selectingOpponentPositionId.value];
-          isSelectingOpponentPlayer.value = false;
-          selectingOpponentPositionId.value = null;
-        };
-        const removeOpponentPlayerForPositionFromList = (posId) => {
-          delete matchForm.opponentLineup[posId];
-        };
-
+        const saveOpponentPlayerForPosition = () => { matchForm.opponentLineup[selectingOpponentPositionId.value] = JSON.parse(JSON.stringify(opponentPlayerForm)); isSelectingOpponentPlayer.value = false; selectingOpponentPositionId.value = null; };
+        const removeOpponentPlayerForPosition = () => { delete matchForm.opponentLineup[selectingOpponentPositionId.value]; isSelectingOpponentPlayer.value = false; selectingOpponentPositionId.value = null; };
+        const removeOpponentPlayerForPositionFromList = (posId) => { delete matchForm.opponentLineup[posId]; };
         const addOpponentPlayer = () => { matchForm.opponentPlayers.push({ number: '', name: '', features: '' }); };
         const removeOpponentPlayer = (index) => { matchForm.opponentPlayers.splice(index, 1); };
-
         const saveMatch = async () => {
-          const isNew = !matchForm.id;
-          if (isNew) matchForm.id = crypto.randomUUID();
+          const isNew = !matchForm.id; if (isNew) matchForm.id = crypto.randomUUID();
           const dataToSave = JSON.parse(JSON.stringify(matchForm));
-          
-          if (isNew) matches.value.push(dataToSave);
-          else {
-            const idx = matches.value.findIndex(m => m.id === dataToSave.id);
-            if(idx !== -1) matches.value[idx] = dataToSave;
-          }
-          isEditingMatch.value = false;
-          await saveToCloud('matches', dataToSave.id, dataToSave);
+          if (isNew) matches.value.push(dataToSave); else { const idx = matches.value.findIndex(m => m.id === dataToSave.id); if(idx !== -1) matches.value[idx] = dataToSave; }
+          isEditingMatch.value = false; await saveToCloud('matches', dataToSave.id, dataToSave);
         };
-        const deleteMatch = async (id) => {
-          if(confirm("削除しますか？")) {
-             matches.value = matches.value.filter(m => m.id !== id);
-             isEditingMatch.value = false;
-             await deleteFromCloud('matches', id);
-          }
-        };
+        const deleteMatch = async (id) => { if(confirm("削除しますか？")) { matches.value = matches.value.filter(m => m.id !== id); isEditingMatch.value = false; await deleteFromCloud('matches', id); } };
 
-        // --- Memo Methods ---
-        const openMemoForm = () => {
-          Object.assign(memoForm, getEmptyMemoForm());
-          isEditingMemo.value = true;
-        };
-
-        const editMemo = (m) => {
-          Object.assign(memoForm, JSON.parse(JSON.stringify(m)));
-          isEditingMemo.value = true;
-        };
-
+        const openMemoForm = () => { Object.assign(memoForm, getEmptyMemoForm()); isEditingMemo.value = true; };
+        const editMemo = (m) => { Object.assign(memoForm, JSON.parse(JSON.stringify(m))); isEditingMemo.value = true; };
         const saveMemo = async () => {
           if (!memoForm.title) { alert("タイトルを入力してください"); return; }
           loadingData.value = true;
-          const isNew = !memoForm.id;
-          if (isNew) {
-            memoForm.id = crypto.randomUUID();
-          }
+          const isNew = !memoForm.id; if (isNew) { memoForm.id = crypto.randomUUID(); }
           memoForm.updatedAt = Date.now();
           const dataToSave = JSON.parse(JSON.stringify(memoForm));
-          
-          if (isNew) memos.value.push(dataToSave);
-          else {
-            const idx = memos.value.findIndex(m => m.id === dataToSave.id);
-            if(idx !== -1) memos.value[idx] = dataToSave;
-          }
-          isEditingMemo.value = false;
-          await saveToCloud('memos', dataToSave.id, dataToSave);
-          loadingData.value = false;
+          if (isNew) memos.value.push(dataToSave); else { const idx = memos.value.findIndex(m => m.id === dataToSave.id); if(idx !== -1) memos.value[idx] = dataToSave; }
+          isEditingMemo.value = false; await saveToCloud('memos', dataToSave.id, dataToSave); loadingData.value = false;
         };
+        const deleteMemo = async (id) => { if(confirm("削除しますか？")) { memos.value = memos.value.filter(m => m.id !== id); isEditingMemo.value = false; await deleteFromCloud('memos', id); } };
 
-        const deleteMemo = async (id) => {
-          if(confirm("このメモを削除しますか？")) {
-             memos.value = memos.value.filter(m => m.id !== id);
-             isEditingMemo.value = false;
-             await deleteFromCloud('memos', id);
-          }
-        };
-
-        // --- Settings & Export/Import ---
         const saveFirebaseConfig = () => {
           try {
             let configText = firebaseConfigInput.value.trim();
             if (!configText) { alert("設定が入力されていません。"); return; }
-            
             const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
-            const configObj = {};
-            let isExtracted = true;
-
+            const configObj = {}; let isExtracted = true;
             for (const key of keys) {
-               const regex = new RegExp(`["'“”]?${key}["'“”]?\\s*:\\s*["'“”]([^"'“”]+)["'“”]`);
-               const match = configText.match(regex);
-               if (match && match[1]) configObj[key] = match[1];
-               else { isExtracted = false; break; }
+               const match = configText.match(new RegExp(`["'“”]?${key}["'“”]?\\s*:\\s*["'“”]([^"'“”]+)["'“”]`));
+               if (match && match[1]) configObj[key] = match[1]; else { isExtracted = false; break; }
             }
-
-            if (isExtracted) {
-              localStorage.setItem('soccer_mgr_firebase_config', JSON.stringify(configObj, null, 2));
-            } else {
+            if (isExtracted) { localStorage.setItem('soccer_mgr_firebase_config', JSON.stringify(configObj, null, 2)); } 
+            else {
               configText = configText.replace(/[“”″]/g, '"').replace(/[‘’′]/g, "'").replace(/　/g, ' ').replace(/,\s*}/g, '}').replace(/[\u200B-\u200D\uFEFF]/g, ''); 
-              JSON.parse(configText); 
-              localStorage.setItem('soccer_mgr_firebase_config', configText);
+              JSON.parse(configText); localStorage.setItem('soccer_mgr_firebase_config', configText);
             }
-            alert("Firebase設定を保存しました。アプリを再読み込みして適用します。");
-            window.location.reload();
-          } catch(e) {
-            alert("設定を読み取れませんでした。必要な項目（apiKeyなど）が含まれているか確認してください。");
-            console.error("Config Parse Error:", e);
-          }
+            alert("Firebase設定を保存しました。アプリを再読み込みして適用します。"); window.location.reload();
+          } catch(e) { alert("設定を読み取れませんでした。"); }
         };
-
-        const clearFirebaseConfig = () => {
-          if(confirm("Firebase設定をクリアし、標準環境に戻しますか？")) {
-            localStorage.removeItem('soccer_mgr_firebase_config');
-            firebaseConfigInput.value = '';
-            window.location.reload();
-          }
-        };
-
+        const clearFirebaseConfig = () => { if(confirm("Firebase設定をクリアし、標準環境に戻しますか？")) { localStorage.removeItem('soccer_mgr_firebase_config'); firebaseConfigInput.value = ''; window.location.reload(); } };
         const saveSettings = async () => { await saveToCloud('settings', 'app_settings', Object.assign({}, settings)); };
-
-        const addPracticeMenu = () => {
-          const val = newMenuName.value.trim();
-          if(val && !settings.practiceMenus.includes(val)) {
-            settings.practiceMenus.push(val);
-            newMenuName.value = '';
-            saveSettings();
-          }
-        };
-
-        const removePracticeMenu = (index) => {
-          settings.practiceMenus.splice(index, 1);
-          saveSettings();
-        };
+        const addPracticeMenu = () => { const val = newMenuName.value.trim(); if(val && !settings.practiceMenus.includes(val)) { settings.practiceMenus.push(val); newMenuName.value = ''; saveSettings(); } };
+        const removePracticeMenu = (index) => { settings.practiceMenus.splice(index, 1); saveSettings(); };
 
         const exportJSON = () => {
           const data = { version, exportDate: new Date().toISOString(), students: students.value, practices: practices.value, matches: matches.value, memos: memos.value, settings };
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `soccer_team_backup_${new Date().toISOString().split('T')[0]}.json`;
-          a.click();
-          URL.revokeObjectURL(url);
+          const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `soccer_team_backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url);
         };
-
         const importJSON = (e) => {
-          const file = e.target.files[0];
-          if(!file) return;
-          if(!confirm("現在のデータはすべて上書きされ、クラウドにも同期されます。復元を実行しますか？")) { e.target.value = ''; return; }
-          
+          const file = e.target.files[0]; if(!file) return;
+          if(!confirm("現在のデータを上書きし、復元を実行しますか？")) { e.target.value = ''; return; }
           const reader = new FileReader();
           reader.onload = async (event) => {
             loadingData.value = true;
             try {
               const data = JSON.parse(event.target.result);
-              
-              if(data.students) students.value = data.students;
-              if(data.practices) practices.value = data.practices;
-              if(data.matches) matches.value = data.matches;
-              if(data.memos) memos.value = data.memos;
-              if(data.settings) {
-                 if(!data.settings.savedLineups) data.settings.savedLineups = []; // 互換性
-                 Object.assign(settings, data.settings);
-              }
-
+              if(data.students) students.value = data.students; if(data.practices) practices.value = data.practices; if(data.matches) matches.value = data.matches; if(data.memos) memos.value = data.memos;
+              if(data.settings) { if(!data.settings.savedLineups) data.settings.savedLineups = []; Object.assign(settings, data.settings); }
               if (user.value && db) {
                 const batch = writeBatch(db);
                 if(data.students) data.students.forEach(s => batch.set(getPublicDoc('students', s.id), s));
@@ -1692,87 +1326,25 @@
                 if(data.matches) data.matches.forEach(m => batch.set(getPublicDoc('matches', m.id), m));
                 if(data.memos) data.memos.forEach(m => batch.set(getPublicDoc('memos', m.id), m));
                 if(data.settings) batch.set(getPublicDoc('settings', 'app_settings'), data.settings);
-
-                await batch.commit();
-                alert("データの復元とクラウドへの同期が完了しました。");
-              } else {
-                alert("ローカルデータとして復元しました。(現在オフラインです)");
-              }
-            } catch (err) {
-              console.error(err);
-              alert("JSONファイルの読み込みに失敗しました。ファイル形式を確認してください。");
-            } finally {
-              loadingData.value = false;
-              e.target.value = '';
-            }
+                await batch.commit(); alert("復元が完了しました。");
+              } else { alert("ローカルデータとして復元しました。"); }
+            } catch (err) { alert("ファイルの読み込みに失敗しました。"); } finally { loadingData.value = false; e.target.value = ''; }
           };
           reader.readAsText(file);
         };
 
         return {
           version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
-          students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, getStudentShortName, getStudentNumber, studentStats,
-          sortConfig, sortBy, resetSort,
+          students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, getStudentShortName, getStudentNumber, studentStats, sortConfig, sortBy, resetSort,
           downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
           getWeekday, autoSetHoliday, formatDate,
-          practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount,
-          isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
-          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer,
-          currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange,
-          currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList,
-          saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
+          practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
+          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
-          settings, newMenuName, addPracticeMenu, removePracticeMenu, saveSettings,
-          customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig,
-          exportJSON, importJSON
+          settings, newMenuName, addPracticeMenu, removePracticeMenu, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON
         };
       }
     }).mount('#app');
   </script>
-
-  <!-- Reusable Tailwind Custom Classes defined via inline block to keep single-file integrity -->
-  <style type="text/tailwindcss">
-    @layer components {
-      .nav-btn {
-        @apply flex items-center p-3 w-full text-slate-400 hover:text-white rounded-xl transition-all duration-200 hover:bg-slate-800/50 relative overflow-hidden;
-      }
-      .nav-btn.active {
-        @apply text-emerald-400 bg-emerald-500/10 font-bold;
-      }
-      .nav-btn.active::before {
-        content: '';
-        @apply absolute left-0 top-0 h-full w-1 bg-emerald-400 rounded-r-md;
-      }
-      
-      .btn-primary {
-        @apply bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-5 py-2 rounded-lg font-medium hover:from-emerald-500 hover:to-teal-400 transition-all shadow-md active:scale-95 text-sm md:text-base;
-      }
-      .btn-secondary {
-        @apply bg-slate-800 border border-slate-700 text-slate-300 px-5 py-2 rounded-lg font-medium hover:bg-slate-700 hover:text-white transition-all active:scale-95 text-sm md:text-base;
-      }
-      .btn-warning {
-        @apply bg-gradient-to-r from-amber-600 to-orange-500 text-white px-5 py-2 rounded-lg font-medium hover:from-amber-500 hover:to-orange-400 transition-all shadow-md active:scale-95 text-sm md:text-base;
-      }
-
-      .form-input {
-        @apply w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-slate-600;
-      }
-      .form-label {
-        @apply block text-sm font-bold text-slate-300 mb-2;
-      }
-
-      .fade-in {
-        animation: fadeIn 0.4s ease-out forwards;
-      }
-      
-      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
 </body>
 </html>
