@@ -1,4 +1,276 @@
-<!-- ... existing code ... -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soccer Team Manager v1.9.2</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    [v-cloak] { display: none; }
+    /* Custom Scrollbar for Dark Theme */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; }
+    
+    .glass-panel {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* アニメーションやスクロールバーなどの標準CSSはここに分離（デザイン崩れ防止） */
+    .fade-in {
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-200 h-screen overflow-hidden selection:bg-emerald-500 selection:text-white">
+  
+  <div id="app" class="flex h-full w-full" v-cloak>
+    
+    <!-- Sidebar Navigation -->
+    <aside class="w-20 md:w-64 glass-panel flex flex-col justify-between h-full shrink-0 transition-all duration-300 z-20 shadow-xl">
+      <div>
+        <div class="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-700/50">
+          <i class="fa-solid fa-futbol text-emerald-400 text-2xl"></i>
+          <span class="hidden md:block ml-3 font-bold text-lg tracking-wider text-white">TEAM MGR</span>
+        </div>
+        <nav class="mt-6 flex flex-col gap-2 px-2 md:px-4">
+          <button @click="currentView = 'dashboard'" :class="['nav-btn', currentView === 'dashboard' ? 'active' : '']">
+            <i class="fa-solid fa-chart-line w-6 text-center"></i>
+            <span class="hidden md:block ml-3 font-medium">ダッシュボード</span>
+          </button>
+          <button @click="currentView = 'students'" :class="['nav-btn', currentView === 'students' ? 'active' : '']">
+            <i class="fa-solid fa-users w-6 text-center"></i>
+            <span class="hidden md:block ml-3 font-medium">名簿・生徒管理</span>
+          </button>
+          <button @click="currentView = 'practice'" :class="['nav-btn', currentView === 'practice' ? 'active' : '']">
+            <i class="fa-solid fa-stopwatch w-6 text-center"></i>
+            <span class="hidden md:block ml-3 font-medium">練習記録</span>
+          </button>
+          <button @click="currentView = 'match'" :class="['nav-btn', currentView === 'match' ? 'active' : '']">
+            <i class="fa-solid fa-trophy w-6 text-center"></i>
+            <span class="hidden md:block ml-3 font-medium">試合記録</span>
+          </button>
+          <button @click="currentView = 'memo'" :class="['nav-btn', currentView === 'memo' ? 'active' : '']">
+            <i class="fa-solid fa-note-sticky w-6 text-center"></i>
+            <span class="hidden md:block ml-3 font-medium">メモ</span>
+          </button>
+          <button @click="currentView = 'settings'" :class="['nav-btn', currentView === 'settings' ? 'active' : '']">
+            <i class="fa-solid fa-gear w-6 text-center"></i>
+            <span class="hidden md:block ml-3 font-medium">設定・データ</span>
+          </button>
+        </nav>
+      </div>
+      <div class="p-4 text-center border-t border-slate-700/50">
+        <div class="text-xs text-slate-500 font-mono">v{{ version }}</div>
+        <div v-if="loadingAuth" class="text-xs text-emerald-400 mt-1 animate-pulse">接続中...</div>
+        <div v-else-if="user" class="text-xs text-emerald-400 mt-1"><i class="fa-solid fa-cloud-check"></i> 同期完了</div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 h-full overflow-y-auto relative bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-800 via-slate-900 to-black">
+      
+      <!-- Loading Overlay -->
+      <div v-if="loadingData" class="absolute inset-0 bg-slate-900/80 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+        <i class="fa-solid fa-circle-notch fa-spin text-4xl text-emerald-500 mb-4"></i>
+        <p class="text-emerald-400 font-medium tracking-widest">LOADING DATA...</p>
+      </div>
+
+      <div class="p-4 md:p-8 max-w-7xl mx-auto pb-24">
+        
+        <!-- Header -->
+        <header class="mb-8 flex justify-between items-end">
+          <div>
+            <h1 class="text-3xl font-extrabold text-white tracking-tight">{{ viewTitle }}</h1>
+            <p class="text-slate-400 mt-1 text-sm">{{ viewSubtitle }}</p>
+          </div>
+        </header>
+
+        <!-- DASHBOARD VIEW -->
+        <div v-if="currentView === 'dashboard'" class="space-y-6 fade-in">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="glass-panel rounded-2xl p-6 border-l-4 border-l-blue-500">
+              <div class="text-slate-400 text-sm font-medium">現役生徒数</div>
+              <div class="text-4xl font-bold text-white mt-2">{{ activeStudents.length }}<span class="text-base font-normal text-slate-500 ml-2">名</span></div>
+            </div>
+            <div class="glass-panel rounded-2xl p-6 border-l-4 border-l-emerald-500">
+              <div class="text-slate-400 text-sm font-medium">今月の練習回数</div>
+              <div class="text-4xl font-bold text-white mt-2">{{ practices.length }}<span class="text-base font-normal text-slate-500 ml-2">回</span></div>
+            </div>
+            <div class="glass-panel rounded-2xl p-6 border-l-4 border-l-amber-500">
+              <div class="text-slate-400 text-sm font-medium">総試合数</div>
+              <div class="text-4xl font-bold text-white mt-2">{{ matches.length }}<span class="text-base font-normal text-slate-500 ml-2">試合</span></div>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+            <div class="glass-panel rounded-2xl p-6">
+              <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">最近の練習</h3>
+              <div v-if="sortedPractices.length === 0" class="text-slate-500 text-sm text-center py-4">記録がありません</div>
+              <ul class="space-y-3">
+                <li v-for="p in sortedPractices.slice(0, 5)" :key="p.id" class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg">
+                  <div>
+                    <span class="text-emerald-400 font-mono text-sm">{{ p.date }} ({{ getWeekday(p.date) }})</span>
+                    <span v-if="p.isHoliday" class="text-xs border border-amber-600/50 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded ml-1">休日</span>
+                    <span class="ml-2 text-slate-300 text-sm">
+                      <template v-if="p.menus.length > 0">
+                         <span v-for="(m, i) in p.menus" :key="i">{{ i > 0 ? ' → ' : '' }}{{ m }}</span>
+                      </template>
+                      <template v-else>メニュー未登録</template>
+                    </span>
+                  </div>
+                  <button @click="editPractice(p)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-right"></i></button>
+                </li>
+              </ul>
+            </div>
+            <div class="glass-panel rounded-2xl p-6">
+              <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">最近の試合</h3>
+              <div v-if="sortedMatches.length === 0" class="text-slate-500 text-sm text-center py-4">記録がありません</div>
+              <ul class="space-y-3">
+                <li v-for="m in sortedMatches.slice(0, 5)" :key="m.id" class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg">
+                  <div>
+                    <span class="text-amber-400 font-mono text-sm">{{ m.date }}</span>
+                    <span class="ml-3 text-slate-200 font-bold">vs {{ m.opponent }}</span>
+                  </div>
+                  <div class="flex items-center gap-4">
+                    <span class="text-xl font-black" :class="m.scoreUs > m.scoreThem ? 'text-emerald-500' : (m.scoreUs < m.scoreThem ? 'text-red-500' : 'text-slate-400')">
+                      {{ m.scoreUs }} - {{ m.scoreThem }}
+                    </span>
+                    <button @click="editMatch(m)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-right"></i></button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- STUDENTS VIEW -->
+        <div v-if="currentView === 'students'" class="space-y-6 fade-in">
+          <div class="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+            <div class="flex space-x-2">
+              <button @click="studentTab = 'active'" :class="['px-4 py-2 rounded-lg font-medium text-sm transition', studentTab === 'active' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">現役生徒</button>
+              <button @click="studentTab = 'ob'" :class="['px-4 py-2 rounded-lg font-medium text-sm transition', studentTab === 'ob' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">卒業生 (OB/OG)</button>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+              <button @click="downloadCSVTemplate" class="text-emerald-400 hover:text-emerald-300 text-sm mr-2 underline decoration-emerald-400/30 underline-offset-4"><i class="fa-solid fa-download mr-1"></i>CSV雛形</button>
+              <label class="btn-secondary cursor-pointer">
+                <i class="fa-solid fa-file-csv mr-2"></i>CSV一括追加
+                <input type="file" accept=".csv" @change="importStudentsCSV" class="hidden">
+              </label>
+              <button @click="openAddStudentModal" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>手動追加</button>
+              <button @click="updateAcademicYear" class="btn-warning"><i class="fa-solid fa-arrow-up-right-dots mr-2"></i>年度更新を実行</button>
+            </div>
+          </div>
+
+          <div class="glass-panel rounded-2xl overflow-x-auto">
+            <div v-if="sortConfig.key" class="px-4 pt-3 flex justify-between items-center text-sm">
+              <span class="text-emerald-400"><i class="fa-solid fa-filter mr-1"></i>並び替え中...</span>
+              <button @click="resetSort" class="text-slate-400 hover:text-white transition underline underline-offset-2">初期状態に戻す</button>
+            </div>
+            <table class="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr class="bg-slate-800/80 text-slate-400 text-sm uppercase tracking-wider select-none">
+                  <th class="p-4 font-medium">名前</th>
+                  <th class="p-4 font-medium cursor-pointer hover:text-white group transition" @click="sortBy('grade')">
+                    学年 <i class="fa-solid ml-1 text-slate-600 group-hover:text-emerald-400" :class="sortConfig.key === 'grade' ? (sortConfig.order === 'asc' ? 'fa-sort-up text-emerald-400' : 'fa-sort-down text-emerald-400') : 'fa-sort'"></i>
+                  </th>
+                  <th class="p-4 font-medium cursor-pointer hover:text-white group transition" @click="sortBy('number')">
+                    背番号 <i class="fa-solid ml-1 text-slate-600 group-hover:text-emerald-400" :class="sortConfig.key === 'number' ? (sortConfig.order === 'asc' ? 'fa-sort-up text-emerald-400' : 'fa-sort-down text-emerald-400') : 'fa-sort'"></i>
+                  </th>
+                  <th class="p-4 font-medium cursor-pointer hover:text-white group transition" @click="sortBy('position')">
+                    Pos <i class="fa-solid ml-1 text-slate-600 group-hover:text-emerald-400" :class="sortConfig.key === 'position' ? (sortConfig.order === 'asc' ? 'fa-sort-up text-emerald-400' : 'fa-sort-down text-emerald-400') : 'fa-sort'"></i>
+                  </th>
+                  <th class="p-4 font-medium text-center cursor-pointer hover:text-white group transition" @click="sortBy('absent')">
+                    欠席 (平/休) <i class="fa-solid ml-1 text-slate-600 group-hover:text-emerald-400" :class="sortConfig.key === 'absent' ? (sortConfig.order === 'asc' ? 'fa-sort-up text-emerald-400' : 'fa-sort-down text-emerald-400') : 'fa-sort'"></i>
+                  </th>
+                  <th class="p-4 font-medium">ステータス</th>
+                  <th class="p-4 font-medium text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-700/50">
+                <tr v-if="displayStudents.length === 0">
+                  <td colspan="7" class="p-8 text-center text-slate-500">生徒データがありません。手動追加またはCSVで追加してください。</td>
+                </tr>
+                <tr v-for="s in displayStudents" :key="s.id" class="hover:bg-slate-800/30 transition">
+                  <td class="p-4 font-medium text-white">{{ s.name }}</td>
+                  <td class="p-4 text-slate-300">{{ s.grade }}年</td>
+                  <td class="p-4 text-slate-300 font-mono">{{ s.number || '-' }}</td>
+                  <td class="p-4 text-slate-300">{{ s.position || '-' }}</td>
+                  <td class="p-4 text-center">
+                    <div class="inline-flex gap-2 items-center text-sm bg-slate-900/50 px-3 py-1 rounded border border-slate-700/50">
+                      <span class="text-slate-400">平: <span class="text-red-400 font-bold">{{ studentStats[s.id]?.weekdayAbsent || 0 }}</span></span>
+                      <span class="text-slate-600">|</span>
+                      <span class="text-slate-400">休: <span class="text-amber-500 font-bold">{{ studentStats[s.id]?.holidayAbsent || 0 }}</span></span>
+                    </div>
+                  </td>
+                  <td class="p-4">
+                    <span v-if="s.isGraduated" class="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded-full">卒業</span>
+                    <span v-else class="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">現役</span>
+                  </td>
+                  <td class="p-4 text-right">
+                    <div class="flex justify-end gap-2">
+                      <button @click="editStudent(s)" title="編集" class="text-blue-400 hover:text-blue-300 text-sm px-2 py-1 rounded bg-blue-400/10 hover:bg-blue-400/20 transition"><i class="fa-solid fa-pen"></i></button>
+                      <button @click="deleteStudent(s.id)" title="削除" class="text-red-400 hover:text-red-300 text-sm px-2 py-1 rounded bg-red-400/10 hover:bg-red-400/20 transition"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- 生徒追加・編集モーダル -->
+          <div v-if="showStudentModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm fade-in">
+            <div class="glass-panel p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl border border-slate-600">
+              <h3 class="text-xl font-bold text-white mb-6 flex items-center">
+                <i class="fa-solid text-emerald-400 mr-2" :class="studentForm.id ? 'fa-user-pen' : 'fa-user-plus'"></i>
+                <span>{{ studentForm.id ? '生徒情報を編集' : '生徒を手動追加' }}</span>
+              </h3>
+              <div class="space-y-4 mb-8">
+                <div>
+                  <label class="form-label">名前 <span class="text-red-400">*</span></label>
+                  <input type="text" v-model="studentForm.name" placeholder="山田 太郎" class="form-input">
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                  <div>
+                    <label class="form-label">学年</label>
+                    <input type="number" min="1" max="6" v-model="studentForm.grade" class="form-input">
+                  </div>
+                  <div>
+                    <label class="form-label">背番号</label>
+                    <input type="text" v-model="studentForm.number" placeholder="10" class="form-input">
+                  </div>
+                  <div>
+                    <label class="form-label">Pos</label>
+                    <input type="text" v-model="studentForm.position" placeholder="FW" class="form-input">
+                  </div>
+                </div>
+              </div>
+              <div class="flex justify-end gap-3">
+                <button @click="showStudentModal = false" class="btn-secondary">キャンセル</button>
+                <button @click="saveStudent" class="btn-primary shadow-emerald-500/30 shadow-lg px-8">{{ studentForm.id ? '更新' : '追加' }}</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
         <!-- PRACTICE VIEW -->
         <div v-if="currentView === 'practice'" class="space-y-6 fade-in">
           <!-- List Mode -->
@@ -45,7 +317,38 @@
           </div>
 
           <!-- Form Mode -->
-<!-- ... existing code ... -->
+          <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative">
+            <button @click="isEditingPractice = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-bold text-white mb-6">{{ practiceForm.id ? '練習記録の編集' : '新規練習記録' }}</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div class="md:col-span-2">
+                <label class="form-label">日付と種別</label>
+                <div class="flex items-center gap-3">
+                  <input type="date" v-model="practiceForm.date" @change="autoSetHoliday" class="form-input flex-1">
+                  <span class="text-slate-300 font-bold text-lg w-8 text-center">{{ getWeekday(practiceForm.date) }}</span>
+                  <label class="flex items-center gap-2 cursor-pointer border border-slate-700 pl-2 pr-4 py-3 rounded-lg bg-slate-900/80 hover:bg-slate-800 transition">
+                    <input type="checkbox" v-model="practiceForm.isHoliday" class="w-5 h-5 text-amber-500 rounded focus:ring-amber-500 bg-slate-800 border-slate-600">
+                    <span class="text-sm font-medium" :class="practiceForm.isHoliday ? 'text-amber-400' : 'text-slate-400'">休日扱い</span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">天気</label>
+                <select v-model="practiceForm.weather" class="form-input">
+                  <option>晴れ</option><option>曇り</option><option>雨</option><option>雪</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label">時間</label>
+                <div class="flex items-center gap-2">
+                  <input type="time" v-model="practiceForm.startTime" class="form-input px-2 text-sm text-center">
+                  <span class="text-slate-500">-</span>
+                  <input type="time" v-model="practiceForm.endTime" class="form-input px-2 text-sm text-center">
+                </div>
+              </div>
+            </div>
+
             <!-- メニュー選択（順番保持・リスト管理付き） -->
             <div class="mb-8 border-t border-slate-700 pt-6">
               <div class="flex justify-between items-end mb-4">
@@ -57,7 +360,33 @@
 
               <!-- 選択済みメニュー -->
               <div class="flex flex-wrap gap-2 mb-4 min-h-[44px] p-2 bg-slate-900/80 rounded-lg border border-slate-700 items-center">
-<!-- ... existing code ... -->
+                <div v-for="(m, i) in practiceForm.menus" :key="i" @click="removeMenuFromPractice(i)" class="bg-emerald-600 text-white pl-3 pr-2 py-1 rounded-full text-sm flex items-center cursor-pointer hover:bg-red-500 transition group" title="クリックで削除">
+                  <span class="font-mono font-bold mr-1.5 opacity-80">{{ i + 1 }}.</span> {{ m }} 
+                  <i class="fa-solid fa-xmark ml-2 text-[10px] bg-black/20 rounded-full w-4 h-4 flex items-center justify-center group-hover:bg-black/40"></i>
+                </div>
+                <span v-if="practiceForm.menus.length === 0" class="text-slate-500 text-sm ml-2">下の候補から選んでください...</span>
+              </div>
+              
+              <!-- 候補リスト (通常モード) -->
+              <div v-if="!isEditingPracticeMenus" class="flex flex-wrap gap-2 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                <button v-for="menu in settings.practiceMenus" :key="menu" type="button" @click="addMenuToPractice(menu)" class="px-3 py-1.5 bg-slate-800 border border-slate-600 rounded-lg text-slate-300 hover:bg-slate-700 hover:border-slate-500 text-sm transition shadow-sm">
+                  <i class="fa-solid fa-plus text-emerald-500/70 mr-1.5 text-xs"></i>{{ menu }}
+                </button>
+                <span v-if="settings.practiceMenus.length === 0" class="text-xs text-slate-500 py-1">登録されているメニューがありません</span>
+              </div>
+              
+              <!-- 候補リスト (編集モード) -->
+              <div v-else class="bg-slate-800 p-4 rounded-lg border border-blue-500/30 shadow-inner">
+                <p class="text-xs text-slate-400 mb-3"><i class="fa-solid fa-circle-info mr-1"></i>ここでの変更はアプリ全体の設定に保存されます。</p>
+                <div class="flex flex-wrap gap-2 mb-4">
+                  <div v-for="(menu, i) in settings.practiceMenus" :key="i" class="flex items-center gap-1 bg-slate-900 border border-slate-700 pl-3 pr-1 py-1 rounded">
+                    <span class="text-slate-300 text-sm">{{ menu }}</span>
+                    <button type="button" @click="deleteSettingMenu(i)" class="text-slate-500 hover:text-red-400 p-1 ml-1 transition"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <input type="text" v-model="newPracticeMenuInput" placeholder="新しいメニュー名を入力" class="form-input py-1.5 px-3 text-sm flex-1" @keyup.enter="addSettingMenuInline">
+                  <button type="button" @click="addSettingMenuInline" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded text-sm transition font-medium">追加</button>
                   <button type="button" @click="isEditingPracticeMenus = false" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-1.5 rounded text-sm transition font-medium border border-slate-600">完了</button>
                 </div>
               </div>
@@ -104,85 +433,1003 @@
             </div>
 
             <div class="mb-8 border-t border-slate-700 pt-6">
-              <label class="block text-sm font-bold text-emerald-400 mb-2"><i class="fa-solid fa-comment-dots mr-2"></i>全体コメント・反省点</label>
-<!-- ... existing code ... -->
-        // --- Forms ---
-        const getEmptyPracticeForm = () => ({
-          id: null,
-          date: new Date().toISOString().split('T')[0],
-          startTime: settings.defaultStartTime,
-          endTime: settings.defaultEndTime,
-          menus: [],
-          weather: '晴れ',
-          isHoliday: false,
+              <label class="form-label"><i class="fa-solid fa-comment-dots mr-2"></i>全体コメント・反省点</label>
+              <textarea v-model="practiceForm.overallComment" rows="4" class="form-input resize-y" placeholder="今日の練習の雰囲気や、次回の課題などを記録..."></textarea>
+            </div>
+
+            <div class="flex justify-between items-center border-t border-slate-700 pt-6">
+              <button v-if="practiceForm.id" @click="deletePractice(practiceForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
+              <div v-else></div>
+              <div class="flex space-x-3">
+                <button @click="isEditingPractice = false" class="btn-secondary">キャンセル</button>
+                <button @click="savePractice" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MATCH VIEW -->
+        <div v-if="currentView === 'match'" class="space-y-6 fade-in">
+          <!-- List Mode -->
+          <div v-if="!isEditingMatch">
+            <div class="flex justify-between items-center mb-6">
+              <h2 class="text-xl font-bold text-white">試合記録一覧</h2>
+              <button @click="openMatchForm()" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>新規記録</button>
+            </div>
+            <div class="grid gap-4">
+               <div v-if="sortedMatches.length === 0" class="glass-panel p-8 text-center text-slate-500 rounded-2xl">記録がありません</div>
+               <div v-for="m in sortedMatches" :key="m.id" class="glass-panel rounded-xl p-0 overflow-hidden hover:border-amber-500/50 transition cursor-pointer border border-transparent" @click="editMatch(m)">
+                 <div class="bg-slate-800/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
+                   <div class="flex items-center gap-3">
+                     <span class="bg-amber-500/20 text-amber-400 font-mono px-2 py-1 rounded text-sm font-bold flex items-center gap-1">{{ m.date }} <span class="text-xs font-normal">({{ getWeekday(m.date) }})</span></span>
+                     <span class="text-slate-300 font-medium border border-slate-600 px-2 py-0.5 rounded text-xs">
+                       {{ m.matchType }}
+                       <template v-if="m.matchType === '公式戦' && m.tournamentName"> - {{ m.tournamentName }}</template>
+                     </span>
+                   </div>
+                   <div class="text-slate-400 text-sm"><i class="fa-solid fa-location-dot mr-1"></i>{{ m.location }}</div>
+                 </div>
+                 <div class="p-6 flex items-center justify-center gap-6 md:gap-12 bg-gradient-to-b from-slate-800/30 to-transparent">
+                   <div class="text-center w-24 md:w-32">
+                     <div class="text-sm text-slate-400 mb-1">自チーム</div>
+                     <div class="text-xl font-bold text-white truncate">自チーム</div>
+                   </div>
+                   <div class="flex items-center gap-3 md:gap-6">
+                     <div class="text-3xl md:text-5xl font-black" :class="m.scoreUs > m.scoreThem ? 'text-emerald-500' : 'text-white'">{{ m.scoreUs }}</div>
+                     <div class="text-slate-600 font-bold text-xl">-</div>
+                     <div class="text-3xl md:text-5xl font-black" :class="m.scoreThem > m.scoreUs ? 'text-red-500' : 'text-white'">{{ m.scoreThem }}</div>
+                   </div>
+                   <div class="text-center w-24 md:w-32">
+                     <div class="text-sm text-slate-400 mb-1">相手</div>
+                     <div class="text-xl font-bold text-amber-400 truncate">{{ m.opponent || '未設定' }}</div>
+                   </div>
+                 </div>
+                 <!-- 試合詳細・感想プレビュー -->
+                 <div v-if="m.scorers || m.overallComment" class="bg-slate-900/50 px-5 py-3 border-t border-slate-700/50 text-sm">
+                   <div v-if="m.scorers" class="text-emerald-400 mb-1"><i class="fa-solid fa-futbol mr-2 opacity-80"></i>得点: {{ m.scorers }}</div>
+                   <div v-if="m.overallComment" class="text-slate-400 line-clamp-2 leading-relaxed mt-1"><i class="fa-solid fa-comment-dots mr-2 text-slate-500"></i>{{ m.overallComment }}</div>
+                 </div>
+               </div>
+            </div>
+          </div>
+
+          <!-- Form Mode -->
+          <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative">
+            <button @click="isEditingMatch = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-bold text-white mb-6 border-b border-slate-700 pb-4"><span class="text-amber-500 mr-2">|</span>{{ matchForm.id ? '試合記録の編集' : '新規試合記録' }}</h2>
+            
+            <!-- Basic Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div>
+                <label class="form-label">種別</label>
+                <select v-model="matchForm.matchType" class="form-input"><option>練習試合</option><option>公式戦</option><option>その他</option></select>
+              </div>
+              <div v-if="matchForm.matchType === '公式戦'" class="md:col-span-2 lg:col-span-1 fade-in">
+                <label class="form-label text-amber-400">大会名 <span class="text-xs font-normal text-slate-400">(任意)</span></label>
+                <input type="text" v-model="matchForm.tournamentName" class="form-input border-amber-500/50 focus:border-amber-500 bg-amber-900/10" placeholder="例: インターハイ予選">
+              </div>
+              <div><label class="form-label">日付</label><input type="date" v-model="matchForm.date" class="form-input"></div>
+              <div><label class="form-label">キックオフ</label><input type="time" v-model="matchForm.time" class="form-input"></div>
+              <div><label class="form-label">対戦相手</label><input type="text" v-model="matchForm.opponent" class="form-input border-amber-500/50 focus:border-amber-500" placeholder="〇〇高校"></div>
+              <div><label class="form-label">場所</label><input type="text" v-model="matchForm.location" class="form-input" placeholder="市民グラウンド"></div>
+              <div><label class="form-label">天気</label><select v-model="matchForm.weather" class="form-input"><option>晴れ</option><option>曇り</option><option>雨</option><option>雪</option></select></div>
+              <div><label class="form-label">審判</label><input type="text" v-model="matchForm.referee" class="form-input" placeholder="主審:〇〇"></div>
+            </div>
+
+            <!-- Result -->
+            <div class="glass-panel bg-slate-800/50 rounded-xl p-6 mb-8 border border-slate-700 shadow-inner">
+              <h3 class="text-lg font-bold text-white mb-4 text-center">試合結果</h3>
+              <div class="flex justify-center items-center gap-8 mb-6">
+                <div class="text-center">
+                  <label class="block text-sm text-slate-400 mb-2">自チーム得点</label>
+                  <input type="number" min="0" v-model="matchForm.scoreUs" class="w-24 text-center text-3xl font-bold bg-slate-900 border-none rounded-lg p-2 text-emerald-400">
+                </div>
+                <div class="text-3xl font-bold text-slate-600">-</div>
+                <div class="text-center">
+                  <label class="block text-sm text-slate-400 mb-2">相手得点</label>
+                  <input type="number" min="0" v-model="matchForm.scoreThem" class="w-24 text-center text-3xl font-bold bg-slate-900 border-none rounded-lg p-2 text-red-400">
+                </div>
+              </div>
+              <div>
+                <label class="form-label">得点者・詳細 (例: 前半15分 山田, 後半10分 失点)</label>
+                <textarea v-model="matchForm.scorers" rows="2" class="form-input resize-y" placeholder="得点経過を自由記述..."></textarea>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              <!-- Our Team & Formation -->
+              <div class="border border-slate-700 rounded-xl p-5 bg-slate-900/30 flex flex-col">
+                <h3 class="text-emerald-400 font-bold mb-4 border-b border-slate-700 pb-2 flex justify-between items-center">
+                  <span><i class="fa-solid fa-shield-halved mr-2"></i>フォーメーション＆出場選手</span>
+                  <div class="flex gap-2">
+                    <button @click="saveCurrentLineup" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded transition"><i class="fa-solid fa-floppy-disk mr-1"></i>保存</button>
+                    <button @click="showLoadLineupModal = true" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition border border-slate-600"><i class="fa-solid fa-folder-open mr-1"></i>読込</button>
+                  </div>
+                </h3>
+                <div class="mb-6 flex gap-4 items-center">
+                  <label class="form-label mb-0">システム</label>
+                  <select v-model="matchForm.formation" class="form-input w-48" @change="handleFormationChange">
+                    <option value="4-4-2">4-4-2</option>
+                    <option value="4-2-3-1">4-2-3-1</option>
+                    <option value="4-3-3">4-3-3</option>
+                    <option value="3-5-2">3-5-2</option>
+                    <option value="3-4-3">3-4-3</option>
+                    <option value="5-1-3-1">5-1-3-1</option>
+                    <option value="フリー">フリー (手動入力)</option>
+                  </select>
+                </div>
+
+                <!-- ピッチUI -->
+                <div v-if="matchForm.formation !== 'フリー'" class="relative w-full max-w-[300px] mx-auto aspect-[2/3] bg-emerald-800/80 border-[3px] border-white/80 rounded-sm mb-8 shadow-inner overflow-hidden select-none" style="background-image: repeating-linear-gradient(0deg, transparent, transparent 10%, rgba(255,255,255,0.05) 10%, rgba(255,255,255,0.05) 20%);">
+                  <!-- ピッチのライン -->
+                  <div class="absolute top-1/2 left-0 w-full h-[2px] bg-white/80 -translate-y-1/2"></div>
+                  <div class="absolute top-1/2 left-1/2 w-16 h-16 border-[2px] border-white/80 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                  <div class="absolute top-0 left-1/2 w-32 h-12 border-[2px] border-t-0 border-white/80 -translate-x-1/2"></div>
+                  <div class="absolute bottom-0 left-1/2 w-32 h-12 border-[2px] border-b-0 border-white/80 -translate-x-1/2"></div>
+                  
+                  <!-- ポジションノード -->
+                  <div v-for="pos in currentFormationPositions" :key="pos.id" 
+                       class="absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer group"
+                       :style="{ top: pos.top, left: pos.left }"
+                       @click="openPlayerSelect(pos.id)">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-lg font-bold group-hover:scale-110 transition z-10 border-2"
+                         :class="matchForm.lineup[pos.id] ? 'bg-emerald-500 text-white border-white' : 'bg-slate-800/90 text-slate-300 border-slate-400 border-dashed'">
+                      {{ matchForm.lineup[pos.id] ? (getStudentNumber(matchForm.lineup[pos.id]) || '●') : pos.name }}
+                    </div>
+                    <div class="text-[10px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded mt-1 truncate max-w-[50px] text-center shadow whitespace-nowrap">
+                      {{ getStudentShortName(matchForm.lineup[pos.id]) || pos.name }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- フリーフォーメーション -->
+                <div v-else class="mb-6">
+                  <label class="form-label text-xs">フォーメーション名</label>
+                  <input type="text" v-model="matchForm.customFormation" class="form-input" placeholder="例: 4-4-2 (ダイヤモンド)">
+                </div>
+
+                <div class="mt-auto">
+                  <label class="form-label flex justify-between items-center">
+                    <span>出場選手・個別評価</span>
+                    <button @click="fillActiveStudentsToMatch" class="text-xs bg-emerald-600/20 text-emerald-400 px-2 py-1 rounded hover:bg-emerald-600/40 transition">現役全員をリストに追加</button>
+                  </label>
+                  <div class="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                    <div v-if="Object.keys(matchForm.studentComments).length === 0" class="text-sm text-slate-500 text-center py-4 bg-slate-900/50 rounded border border-slate-800">
+                      ピッチの●をクリックして選手を配置するか、<br>「現役全員を追加」をクリックしてください。
+                    </div>
+                    <div v-for="(comment, studentId) in matchForm.studentComments" :key="studentId" class="flex flex-col bg-slate-800 p-2.5 rounded border border-slate-700/50">
+                      <div class="text-sm text-white font-medium mb-1.5 flex justify-between">
+                        <span><span class="text-emerald-400 font-mono text-xs mr-1">{{ getStudentNumber(studentId) }}</span>{{ getStudentName(studentId) }}</span>
+                        <button @click="removeStudentFromMatch(studentId)" class="text-slate-500 hover:text-red-400 transition"><i class="fa-solid fa-xmark"></i></button>
+                      </div>
+                      <div class="flex gap-2">
+                        <input type="text" v-model="matchForm.studentComments[studentId].position" placeholder="Pos" class="w-16 form-input text-xs py-1 px-2">
+                        <input type="text" v-model="matchForm.studentComments[studentId].comment" placeholder="評価・コメント" class="flex-1 form-input text-xs py-1 px-2">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Opponent Team -->
+              <div class="border border-slate-700 rounded-xl p-5 bg-slate-900/30 flex flex-col">
+                <h3 class="text-amber-400 font-bold mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-crosshairs mr-2"></i>相手チーム情報</h3>
+                <div class="mb-6 flex gap-4 items-center">
+                  <label class="form-label mb-0">システム</label>
+                  <select v-model="matchForm.opponentFormation" class="form-input w-48">
+                    <option value="4-4-2">4-4-2</option>
+                    <option value="4-2-3-1">4-2-3-1</option>
+                    <option value="4-3-3">4-3-3</option>
+                    <option value="3-5-2">3-5-2</option>
+                    <option value="3-4-3">3-4-3</option>
+                    <option value="5-1-3-1">5-1-3-1</option>
+                    <option value="フリー">フリー (手動入力)</option>
+                  </select>
+                </div>
+
+                <!-- 相手ピッチUI -->
+                <div v-if="matchForm.opponentFormation !== 'フリー'" class="relative w-full max-w-[300px] mx-auto aspect-[2/3] bg-amber-900/60 border-[3px] border-white/60 rounded-sm mb-8 shadow-inner overflow-hidden select-none" style="background-image: repeating-linear-gradient(0deg, transparent, transparent 10%, rgba(255,255,255,0.05) 10%, rgba(255,255,255,0.05) 20%);">
+                  <div class="absolute top-1/2 left-0 w-full h-[2px] bg-white/60 -translate-y-1/2"></div>
+                  <div class="absolute top-1/2 left-1/2 w-16 h-16 border-[2px] border-white/60 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                  <div class="absolute top-0 left-1/2 w-32 h-12 border-[2px] border-t-0 border-white/60 -translate-x-1/2"></div>
+                  <div class="absolute bottom-0 left-1/2 w-32 h-12 border-[2px] border-b-0 border-white/60 -translate-x-1/2"></div>
+                  
+                  <!-- ポジションノード (相手) -->
+                  <div v-for="pos in currentOpponentFormationPositions" :key="pos.id" 
+                       class="absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer group"
+                       :style="{ top: pos.top, left: pos.left }"
+                       @click="openOpponentPlayerSelect(pos.id)">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-lg font-bold group-hover:scale-110 transition z-10 border-2"
+                         :class="matchForm.opponentLineup[pos.id] ? 'bg-amber-600 text-white border-white' : 'bg-slate-800/90 text-slate-300 border-slate-400 border-dashed'">
+                      {{ matchForm.opponentLineup[pos.id] ? (matchForm.opponentLineup[pos.id].number || '●') : pos.name }}
+                    </div>
+                    <div class="text-[10px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded mt-1 truncate max-w-[50px] text-center shadow whitespace-nowrap">
+                      {{ matchForm.opponentLineup[pos.id] && matchForm.opponentLineup[pos.id].name ? matchForm.opponentLineup[pos.id].name : pos.name }}
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="mb-6">
+                  <label class="form-label text-xs">フォーメーション名</label>
+                  <input type="text" v-model="matchForm.customOpponentFormation" class="form-input" placeholder="例: 4-4-2 (フラット)">
+                </div>
+
+                <div class="mt-auto">
+                  <label class="form-label">要注意選手・特徴リスト</label>
+                  <div class="space-y-2 mb-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                     <div v-if="Object.keys(matchForm.opponentLineup).length === 0 && matchForm.opponentPlayers.length === 0" class="text-sm text-slate-500 text-center py-4 bg-slate-900/50 rounded border border-slate-800">
+                       ピッチの●をクリックして相手選手を登録してください。<br>スタメン以外の選手は下の「追加」ボタンから登録できます。
+                     </div>
+                     
+                     <!-- ピッチ上の選手 (opponentLineup) -->
+                     <div v-for="(p, posId) in matchForm.opponentLineup" :key="posId" class="flex gap-2 items-start bg-slate-800/80 p-2 rounded border-l-2 border-amber-500">
+                        <span class="w-10 text-[10px] text-amber-400 font-bold flex items-center justify-center bg-slate-900 rounded shrink-0">{{ getPositionName(posId) }}</span>
+                        <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
+                        <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
+                        <input type="text" v-model="p.features" placeholder="特徴 (足が速い等)" class="flex-1 form-input text-xs py-1 px-2">
+                        <button @click="removeOpponentPlayerForPositionFromList(posId)" class="text-slate-500 hover:text-red-400 p-1 shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                     </div>
+
+                     <!-- その他の選手 (opponentPlayers) -->
+                     <div v-for="(p, index) in matchForm.opponentPlayers" :key="'other-'+index" class="flex gap-2 items-start bg-slate-800 p-2 rounded border border-slate-700/50">
+                        <span class="w-10 text-[10px] text-slate-400 font-bold flex items-center justify-center bg-slate-900 rounded shrink-0">控え等</span>
+                        <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
+                        <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
+                        <input type="text" v-model="p.features" placeholder="特徴 (足が速い等)" class="flex-1 form-input text-xs py-1 px-2">
+                        <button @click="removeOpponentPlayer(index)" class="text-red-400 hover:text-red-300 p-1 shrink-0"><i class="fa-solid fa-trash"></i></button>
+                     </div>
+                  </div>
+                  <button @click="addOpponentPlayer" class="text-xs text-amber-400 border border-amber-400/30 px-3 py-1 rounded hover:bg-amber-400/10 w-full transition"><i class="fa-solid fa-plus mr-1"></i>スタメン以外の相手選手を追加</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-8 border-t border-slate-700 pt-6">
+              <label class="form-label"><i class="fa-solid fa-comment-dots mr-2"></i>対戦した感想・総括</label>
+              <textarea v-model="matchForm.overallComment" rows="4" class="form-input resize-y" placeholder="試合全体の流れ、良かった点、反省点などを記録..."></textarea>
+            </div>
+
+            <div class="flex justify-between items-center border-t border-slate-700 pt-6">
+              <button v-if="matchForm.id" @click="deleteMatch(matchForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
+              <div v-else></div>
+              <div class="flex space-x-3">
+                <button @click="isEditingMatch = false" class="btn-secondary">キャンセル</button>
+                <button @click="saveMatch" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
+              </div>
+            </div>
+            
+            <!-- 選手選択モーダル (自チーム用) -->
+            <div v-if="isSelectingPlayer" class="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center backdrop-blur-sm rounded-2xl fade-in p-4">
+               <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl">
+                 <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+                   <h4 class="text-white font-bold"><span class="text-emerald-400 mr-1">{{ getPositionName(selectingPositionId) }}</span>の選手を選択</h4>
+                   <button @click="isSelectingPlayer = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                 </div>
+                 <div class="max-h-64 overflow-y-auto custom-scrollbar p-2">
+                   <button @click="selectPlayerForPosition(null)" class="w-full text-left px-4 py-3 text-red-400 hover:bg-slate-700 rounded transition border-b border-slate-700/50 mb-1 flex items-center">
+                     <i class="fa-solid fa-eraser mr-2"></i>配置を解除する
+                   </button>
+                   <button v-for="s in activeStudents" :key="s.id" @click="selectPlayerForPosition(s.id)" class="w-full text-left px-4 py-2.5 text-slate-200 hover:bg-slate-700 rounded transition flex items-center justify-between">
+                     <span><span class="text-emerald-400 font-mono w-6 inline-block">{{ s.number || '-' }}</span> {{ s.name }}</span>
+                     <span class="text-xs text-slate-500">{{ s.position }}</span>
+                   </button>
+                 </div>
+               </div>
+            </div>
+
+            <!-- 相手選手入力モーダル -->
+            <div v-if="isSelectingOpponentPlayer" class="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center backdrop-blur-sm rounded-2xl fade-in p-4">
+               <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl">
+                 <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+                   <h4 class="text-white font-bold"><span class="text-amber-400 mr-1">{{ getPositionName(selectingOpponentPositionId) }}</span>の相手選手を登録</h4>
+                   <button @click="isSelectingOpponentPlayer = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                 </div>
+                 <div class="p-4 space-y-4">
+                   <div class="flex gap-4">
+                     <div class="w-20">
+                       <label class="block text-xs text-slate-400 mb-1">背番号</label>
+                       <input type="text" v-model="opponentPlayerForm.number" class="form-input text-center" autofocus>
+                     </div>
+                     <div class="flex-1">
+                       <label class="block text-xs text-slate-400 mb-1">名前 (わかる場合)</label>
+                       <input type="text" v-model="opponentPlayerForm.name" class="form-input">
+                     </div>
+                   </div>
+                   <div>
+                     <label class="block text-xs text-slate-400 mb-1">特徴 (プレースタイル・利き足など)</label>
+                     <input type="text" v-model="opponentPlayerForm.features" class="form-input" @keyup.enter="saveOpponentPlayerForPosition">
+                   </div>
+                   
+                   <div class="flex justify-between pt-2">
+                     <button @click="removeOpponentPlayerForPosition" class="text-red-400 hover:text-red-300 text-sm py-2 px-3 transition"><i class="fa-solid fa-eraser mr-1"></i>配置解除</button>
+                     <button @click="saveOpponentPlayerForPosition" class="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium transition shadow-lg shadow-amber-600/20">決定</button>
+                   </div>
+                 </div>
+               </div>
+            </div>
+
+            <!-- スタメン読込モーダル -->
+            <div v-if="showLoadLineupModal" class="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center backdrop-blur-sm rounded-2xl fade-in p-4">
+               <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80%]">
+                 <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0">
+                   <h4 class="text-white font-bold"><i class="fa-solid fa-folder-open mr-2 text-emerald-400"></i>保存済みスタメンの読込</h4>
+                   <button @click="showLoadLineupModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                 </div>
+                 <div class="overflow-y-auto custom-scrollbar p-2 flex-1">
+                   <div v-if="!settings.savedLineups || settings.savedLineups.length === 0" class="text-center py-6 text-slate-500 text-sm">
+                     保存されたスタメンはありません。
+                   </div>
+                   <div v-for="lu in settings.savedLineups" :key="lu.id" class="flex items-center justify-between bg-slate-700/50 hover:bg-slate-700 p-3 rounded mb-2 border border-slate-600 transition group">
+                     <div class="flex-1 cursor-pointer" @click="loadLineup(lu)">
+                       <div class="text-emerald-400 font-bold text-sm mb-0.5">{{ lu.name }}</div>
+                       <div class="text-xs text-slate-300">システム: {{ lu.formation }}</div>
+                     </div>
+                     <button @click="deleteSavedLineup(lu.id)" class="text-slate-500 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition" title="削除"><i class="fa-solid fa-trash"></i></button>
+                   </div>
+                 </div>
+               </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- MEMO VIEW -->
+        <div v-if="currentView === 'memo'" class="space-y-6 fade-in">
+          <!-- List Mode -->
+          <div v-if="!isEditingMemo">
+            <div class="flex justify-between items-center mb-6">
+              <h2 class="text-xl font-bold text-white">メモ一覧</h2>
+              <button @click="openMemoForm()" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>新規メモ</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div v-if="sortedMemos.length === 0" class="col-span-full glass-panel p-8 text-center text-slate-500 rounded-2xl">メモがありません</div>
+              <div v-for="m in sortedMemos" :key="m.id" class="glass-panel rounded-xl p-5 hover:border-emerald-500/50 transition cursor-pointer flex flex-col" @click="editMemo(m)">
+                <h3 class="text-lg font-bold text-white mb-2 truncate">{{ m.title }}</h3>
+                <p class="text-slate-400 text-sm line-clamp-3 mb-4 flex-1 whitespace-pre-wrap">{{ m.content }}</p>
+                <div class="text-xs text-slate-500 text-right"><i class="fa-regular fa-clock mr-1"></i>{{ formatDate(m.updatedAt) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Form Mode -->
+          <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative">
+            <button @click="isEditingMemo = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-bold text-white mb-6">{{ memoForm.id ? 'メモの編集' : '新規メモ' }}</h2>
+            
+            <div class="space-y-6">
+              <div>
+                <label class="form-label">タイトル</label>
+                <input type="text" v-model="memoForm.title" class="form-input text-lg font-bold" placeholder="メモのタイトル">
+              </div>
+              <div>
+                <label class="form-label">内容</label>
+                <textarea v-model="memoForm.content" rows="10" class="form-input resize-y" placeholder="メモの内容を入力..."></textarea>
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center border-t border-slate-700 pt-6 mt-8">
+              <button v-if="memoForm.id" @click="deleteMemo(memoForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
+              <div v-else></div>
+              <div class="flex space-x-3">
+                <button @click="isEditingMemo = false" class="btn-secondary">キャンセル</button>
+                <button @click="saveMemo" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SETTINGS VIEW -->
+        <div v-if="currentView === 'settings'" class="space-y-8 fade-in max-w-4xl">
+          
+          <!-- Firebase設定 UI追加 -->
+          <div class="glass-panel rounded-2xl p-6 border border-slate-700">
+            <h2 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2 flex justify-between items-center">
+              <span><i class="fa-solid fa-cloud mr-2 text-slate-400"></i>Firebase設定 (独自のクラウド保存)</span>
+              <span v-if="customFirebaseEnabled" class="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-1 rounded border border-emerald-500/50"><i class="fa-solid fa-check mr-1"></i>有効です</span>
+              <span v-else class="bg-slate-700 text-slate-300 text-xs px-2 py-1 rounded"><i class="fa-solid fa-minus mr-1"></i>未設定 (標準環境)</span>
+            </h2>
+            <p class="text-sm text-slate-400 mb-4 line-height-relaxed">
+              ご自身のFirebaseプロジェクトと連携させる場合、取得した設定情報（JSON形式）を以下に貼り付けて保存してください。<br>
+              <span class="text-amber-400 text-xs">※適用するにはアプリの再読み込みが発生します。Firebase側で「Authenticationの匿名認証」と「Firestore Database」を有効にしておく必要があります。</span>
+            </p>
+            <textarea v-model="firebaseConfigInput" rows="8" class="form-input font-mono text-xs mb-4 custom-scrollbar" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "...",
+  "projectId": "...",
+  "storageBucket": "...",
+  "messagingSenderId": "...",
+  "appId": "..."
+}'></textarea>
+            <div class="flex gap-4">
+              <button @click="saveFirebaseConfig" class="btn-primary flex-1 py-3"><i class="fa-solid fa-floppy-disk mr-2"></i>保存して適用</button>
+              <button @click="clearFirebaseConfig" class="btn-secondary w-1/3"><i class="fa-solid fa-eraser mr-2"></i>クリア</button>
+            </div>
+          </div>
+
+          <div class="glass-panel rounded-2xl p-6">
+            <h2 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2"><i class="fa-solid fa-sliders mr-2 text-slate-400"></i>アプリ設定</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <h3 class="text-emerald-400 font-bold mb-4 text-sm">練習時間のデフォルト設定</h3>
+                <div class="flex gap-4 items-center">
+                  <div class="flex-1">
+                    <label class="text-xs text-slate-400 block mb-1">開始</label>
+                    <input type="time" v-model="settings.defaultStartTime" class="form-input" @change="saveSettings">
+                  </div>
+                  <span class="text-slate-500 font-bold mt-4">〜</span>
+                  <div class="flex-1">
+                    <label class="text-xs text-slate-400 block mb-1">終了</label>
+                    <input type="time" v-model="settings.defaultEndTime" class="form-input" @change="saveSettings">
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="text-emerald-400 font-bold mb-4 text-sm">練習メニューリスト</h3>
+                <div class="space-y-2 mb-3 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                  <div v-for="(menu, index) in settings.practiceMenus" :key="index" class="flex items-center gap-2 bg-slate-800 p-2 rounded">
+                    <span class="text-slate-200 flex-1 text-sm">{{ menu }}</span>
+                    <button @click="removePracticeMenu(index)" class="text-slate-500 hover:text-red-400 p-1"><i class="fa-solid fa-trash-can"></i></button>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <input type="text" v-model="newMenuName" placeholder="新しいメニュー" class="form-input flex-1 py-1 px-3 text-sm" @keyup.enter="addPracticeMenu">
+                  <button @click="addPracticeMenu" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-sm transition font-medium">追加</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-panel rounded-2xl p-6 border border-slate-700">
+            <h2 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2"><i class="fa-solid fa-hard-drive mr-2 text-slate-400"></i>データのバックアップ (JSON)</h2>
+            <p class="text-sm text-slate-400 mb-6 line-height-relaxed">
+              Firebaseクラウド上にデータは保存されていますが、手動でローカルにバックアップを取ることができます。<br>
+              また、別のアカウントにデータを移行する際にも利用できます。<span class="text-amber-400 font-bold">※インポートすると現在のデータは上書きされます。</span>
+            </p>
+            
+            <div class="flex flex-col sm:flex-row gap-4">
+              <button @click="exportJSON" class="btn-primary flex-1 py-3 bg-blue-600 hover:bg-blue-500 shadow-blue-500/20"><i class="fa-solid fa-download mr-2"></i>JSONデータをダウンロード保存</button>
+              
+              <label class="btn-secondary flex-1 py-3 text-center cursor-pointer border-amber-500/30 text-amber-400 hover:bg-amber-500/10">
+                <i class="fa-solid fa-upload mr-2"></i>JSONデータを読み込み復元
+                <input type="file" accept=".json" @change="importJSON" class="hidden">
+              </label>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Application Logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+    // --- フォーメーション定義 ---
+    const formations = {
+      '4-4-2': [
+        { id: 'fw1', name: 'FW', top: '15%', left: '35%' }, { id: 'fw2', name: 'FW', top: '15%', left: '65%' },
+        { id: 'mf1', name: 'SH', top: '40%', left: '15%' }, { id: 'mf2', name: 'CH', top: '40%', left: '35%' }, { id: 'mf3', name: 'CH', top: '40%', left: '65%' }, { id: 'mf4', name: 'SH', top: '40%', left: '85%' },
+        { id: 'df1', name: 'SB', top: '70%', left: '15%' }, { id: 'df2', name: 'CB', top: '70%', left: '35%' }, { id: 'df3', name: 'CB', top: '70%', left: '65%' }, { id: 'df4', name: 'SB', top: '70%', left: '85%' },
+        { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '4-2-3-1': [
+         { id: 'fw1', name: 'CF', top: '10%', left: '50%' },
+         { id: 'mf1', name: 'SH', top: '30%', left: '20%' }, { id: 'mf2', name: 'OMF', top: '30%', left: '50%' }, { id: 'mf3', name: 'SH', top: '30%', left: '80%' },
+         { id: 'mf4', name: 'DMF', top: '50%', left: '35%' }, { id: 'mf5', name: 'DMF', top: '50%', left: '65%' },
+         { id: 'df1', name: 'SB', top: '75%', left: '15%' }, { id: 'df2', name: 'CB', top: '75%', left: '35%' }, { id: 'df3', name: 'CB', top: '75%', left: '65%' }, { id: 'df4', name: 'SB', top: '75%', left: '85%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '4-3-3': [
+         { id: 'fw1', name: 'WG', top: '15%', left: '20%' }, { id: 'fw2', name: 'CF', top: '15%', left: '50%' }, { id: 'fw3', name: 'WG', top: '15%', left: '80%' },
+         { id: 'mf1', name: 'IH', top: '40%', left: '30%' }, { id: 'mf2', name: 'IH', top: '40%', left: '70%' }, { id: 'mf3', name: 'DMF', top: '55%', left: '50%' },
+         { id: 'df1', name: 'SB', top: '75%', left: '15%' }, { id: 'df2', name: 'CB', top: '75%', left: '35%' }, { id: 'df3', name: 'CB', top: '75%', left: '65%' }, { id: 'df4', name: 'SB', top: '75%', left: '85%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '3-5-2': [
+         { id: 'fw1', name: 'FW', top: '15%', left: '35%' }, { id: 'fw2', name: 'FW', top: '15%', left: '65%' },
+         { id: 'mf1', name: 'WB', top: '40%', left: '15%' }, { id: 'mf2', name: 'OMF', top: '35%', left: '50%' }, { id: 'mf3', name: 'WB', top: '40%', left: '85%' },
+         { id: 'mf4', name: 'DMF', top: '55%', left: '35%' }, { id: 'mf5', name: 'DMF', top: '55%', left: '65%' },
+         { id: 'df1', name: 'CB', top: '75%', left: '25%' }, { id: 'df2', name: 'CB', top: '75%', left: '50%' }, { id: 'df3', name: 'CB', top: '75%', left: '75%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '3-4-3': [
+         { id: 'fw1', name: 'WG', top: '15%', left: '20%' }, { id: 'fw2', name: 'CF', top: '15%', left: '50%' }, { id: 'fw3', name: 'WG', top: '15%', left: '80%' },
+         { id: 'mf1', name: 'SH', top: '45%', left: '15%' }, { id: 'mf2', name: 'CH', top: '45%', left: '35%' }, { id: 'mf3', name: 'CH', top: '45%', left: '65%' }, { id: 'mf4', name: 'SH', top: '45%', left: '85%' },
+         { id: 'df1', name: 'CB', top: '75%', left: '25%' }, { id: 'df2', name: 'CB', top: '75%', left: '50%' }, { id: 'df3', name: 'CB', top: '75%', left: '75%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '5-1-3-1': [
+         { id: 'fw1', name: 'CF', top: '10%', left: '50%' },
+         { id: 'mf1', name: 'SH', top: '30%', left: '20%' }, { id: 'mf2', name: 'OMF', top: '30%', left: '50%' }, { id: 'mf3', name: 'SH', top: '30%', left: '80%' },
+         { id: 'mf4', name: 'DMF', top: '50%', left: '50%' },
+         { id: 'df1', name: 'LWB', top: '70%', left: '15%' }, { id: 'df2', name: 'CB', top: '75%', left: '35%' }, { id: 'df3', name: 'CB', top: '75%', left: '50%' }, { id: 'df4', name: 'CB', top: '75%', left: '65%' }, { id: 'df5', name: 'RWB', top: '70%', left: '85%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ]
+    };
+
+    createApp({
+      setup() {
+        const version = "1.9.2";
+        const currentView = ref('dashboard');
+        const loadingAuth = ref(true);
+        const loadingData = ref(false);
+        const user = ref(null);
+        let db = null;
+        let appId = typeof __app_id !== 'undefined' ? __app_id : 'soccer-manager-final'; 
+
+        const students = ref([]);
+        const practices = ref([]);
+        const matches = ref([]);
+        const memos = ref([]);
+        const settings = reactive({
+          defaultStartTime: '16:00',
+          defaultEndTime: '18:30',
+          practiceMenus: ['アップ', 'パスコン', 'シュート', 'ミニゲーム'],
+          savedLineups: [] 
+        });
+
+        const studentTab = ref('active');
+        const isEditingPractice = ref(false);
+        const isEditingMatch = ref(false);
+        const isEditingMemo = ref(false);
+        const newMenuName = ref('');
+        const showStudentModal = ref(false);
+        const studentForm = reactive({ id: null, name: '', grade: 1, number: '', position: '', isGraduated: false });
+        
+        const sortConfig = reactive({ key: null, order: 'asc' });
+        const isEditingPracticeMenus = ref(false);
+        const newPracticeMenuInput = ref('');
+        const isSelectingPlayer = ref(false);
+        const selectingPositionId = ref(null);
+        const showLoadLineupModal = ref(false);
+        const isSelectingOpponentPlayer = ref(false);
+        const selectingOpponentPositionId = ref(null);
+        const opponentPlayerForm = reactive({ number: '', name: '', features: '' });
+
+        const customFirebaseEnabled = ref(false);
+        const firebaseConfigInput = ref('');
+
+        const getPublicCollection = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
+        const getPublicDoc = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+
+        const getWeekday = (dateString) => {
+          if (!dateString) return '';
+          const days = ['日', '月', '火', '水', '木', '金', '土'];
+          return days[new Date(dateString).getDay()];
+        };
+
+        const autoSetHoliday = () => {
+          if (!practiceForm.date) return;
+          const day = new Date(practiceForm.date).getDay();
+          practiceForm.isHoliday = (day === 0 || day === 6);
+        };
+
+        const formatDate = (timestamp) => {
+           if (!timestamp) return '';
+           const d = new Date(timestamp);
+           return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+        };
+
+        const getEmptyPracticeForm = () => ({ 
+          id: null, 
+          date: new Date().toISOString().split('T')[0], 
+          startTime: settings.defaultStartTime, 
+          endTime: settings.defaultEndTime, 
+          menus: [], 
+          weather: '晴れ', 
+          isHoliday: false, 
           attendance: {}, // { studentId: { status: '出席', reason: '', otherReason: '' } }
-          overallComment: ''
+          overallComment: '' 
         });
         const practiceForm = reactive(getEmptyPracticeForm());
 
-        const getEmptyMatchForm = () => ({
-<!-- ... existing code ... -->
-        // --- Practice Methods ---
-        const openPracticeForm = () => {
-          Object.assign(practiceForm, getEmptyPracticeForm());
-          autoSetHoliday();
-          activeStudents.value.forEach(s => { 
-            practiceForm.attendance[s.id] = { status: '出席', reason: '', otherReason: '' }; 
+        const getEmptyMatchForm = () => ({ id: null, matchType: '練習試合', tournamentName: '', date: new Date().toISOString().split('T')[0], time: '10:00', opponent: '', location: '', weather: '晴れ', referee: '', scoreUs: 0, scoreThem: 0, scorers: '', formation: '4-2-3-1', customFormation: '', lineup: {}, opponentFormation: '4-4-2', customOpponentFormation: '', opponentLineup: {}, opponentPlayers: [], studentComments: {}, overallComment: '' });
+        const matchForm = reactive(getEmptyMatchForm());
+
+        const getEmptyMemoForm = () => ({ id: null, title: '', content: '', updatedAt: null });
+        const memoForm = reactive(getEmptyMemoForm());
+
+        const viewTitle = computed(() => ({ dashboard: 'ダッシュボード', students: '名簿・生徒管理', practice: '練習記録', match: '試合記録', memo: 'メモ', settings: '設定・データ' }[currentView.value]));
+        const viewSubtitle = computed(() => ({ dashboard: 'チームの現状を一目で確認', students: '部員の登録・更新・状態管理', practice: '日々の練習メニューと出席状況', match: '対戦結果・フォーメーション分析', memo: '日々の気づきやアイデアを記録', settings: 'アプリの基本設定とバックアップ' }[currentView.value]));
+
+        const activeStudents = computed(() => students.value.filter(s => !s.isGraduated).sort((a,b) => a.grade - b.grade));
+        const obStudents = computed(() => students.value.filter(s => s.isGraduated).sort((a,b) => b.grade - a.grade));
+        
+        const studentStats = computed(() => {
+          const stats = {};
+          students.value.forEach(s => { stats[s.id] = { weekdayAbsent: 0, holidayAbsent: 0 }; });
+          practices.value.forEach(p => {
+            if (!p.attendance) return;
+            for (const [studentId, att] of Object.entries(p.attendance)) {
+              if (stats[studentId] && att.status === '欠席') {
+                if (p.isHoliday) stats[studentId].holidayAbsent++;
+                else stats[studentId].weekdayAbsent++;
+              }
+            }
           });
-          isEditingPracticeMenus.value = false;
-          isEditingPractice.value = true;
+          return stats;
+        });
+
+        const displayStudents = computed(() => {
+          let list = studentTab.value === 'active' ? activeStudents.value : obStudents.value;
+          if (!sortConfig.key) return list;
+          return [...list].sort((a, b) => {
+            let valA, valB;
+            if (sortConfig.key === 'grade') { valA = a.grade; valB = b.grade; } 
+            else if (sortConfig.key === 'number') { valA = parseInt(a.number); valA = isNaN(valA) ? 9999 : valA; valB = parseInt(b.number); valB = isNaN(valB) ? 9999 : valB; } 
+            else if (sortConfig.key === 'position') { valA = a.position || '\uFFFF'; valB = b.position || '\uFFFF'; } 
+            else if (sortConfig.key === 'absent') { const sA = studentStats.value[a.id]||{weekdayAbsent:0,holidayAbsent:0}; const sB = studentStats.value[b.id]||{weekdayAbsent:0,holidayAbsent:0}; valA = sA.weekdayAbsent + sA.holidayAbsent; valB = sB.weekdayAbsent + sB.holidayAbsent; }
+            if (valA < valB) return sortConfig.order === 'asc' ? -1 : 1;
+            if (valA > valB) return sortConfig.order === 'asc' ? 1 : -1;
+            return 0;
+          });
+        });
+        
+        const sortedPractices = computed(() => [...practices.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
+        const sortedMatches = computed(() => [...matches.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
+        const sortedMemos = computed(() => [...memos.value].sort((a, b) => b.updatedAt - a.updatedAt));
+
+        const currentFormationPositions = computed(() => (matchForm.formation === 'フリー' || !formations[matchForm.formation]) ? [] : formations[matchForm.formation]);
+        const currentOpponentFormationPositions = computed(() => {
+          if (matchForm.opponentFormation === 'フリー' || !formations[matchForm.opponentFormation]) return [];
+          return formations[matchForm.opponentFormation].map(pos => ({ ...pos, top: `calc(100% - ${pos.top})`, left: `calc(100% - ${pos.left})` }));
+        });
+
+        onMounted(() => {
+          const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
+          if (storedConfig) { firebaseConfigInput.value = storedConfig; }
+          initFirebase();
+        });
+
+        const initFirebase = async () => {
+          try {
+            let configObj = null;
+            const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
+            if (storedConfig) {
+               try { configObj = JSON.parse(storedConfig); customFirebaseEnabled.value = true; } catch(e) {}
+            } 
+            else if (typeof __firebase_config !== 'undefined') { configObj = JSON.parse(__firebase_config); }
+
+            if (!configObj) {
+              loadingAuth.value = false; loadingData.value = false; user.value = { uid: 'local-offline-user' };
+              return;
+            }
+
+            const app = initializeApp(configObj);
+            const auth = getAuth(app);
+            db = getFirestore(app);
+
+            const initAuth = async () => {
+              if (customFirebaseEnabled.value) { await signInAnonymously(auth); } 
+              else if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } 
+              else { await signInAnonymously(auth); }
+            };
+            await initAuth();
+
+            onAuthStateChanged(auth, (u) => {
+              user.value = u; loadingAuth.value = false;
+              if (u) loadData();
+            });
+          } catch (e) {
+            loadingAuth.value = false; loadingData.value = false; customFirebaseEnabled.value = false; user.value = { uid: 'local-offline-user' };
+          }
         };
 
+        const loadData = async () => {
+          if (!user.value || !db) { loadingData.value = false; return; }
+          loadingData.value = true;
+          try {
+            const sSnap = await getDocs(getPublicCollection('students')); students.value = sSnap.docs.map(d => d.data());
+            const pSnap = await getDocs(getPublicCollection('practices')); practices.value = pSnap.docs.map(d => d.data());
+            const mSnap = await getDocs(getPublicCollection('matches')); matches.value = mSnap.docs.map(d => d.data());
+            const memoSnap = await getDocs(getPublicCollection('memos')); memos.value = memoSnap.docs.map(d => d.data());
+            const setSnap = await getDocs(getPublicCollection('settings'));
+            if (!setSnap.empty) {
+               const settingsDoc = setSnap.docs.find(d => d.id === 'app_settings');
+               if(settingsDoc) {
+                 const savedSettings = settingsDoc.data();
+                 if(!savedSettings.savedLineups) savedSettings.savedLineups = [];
+                 Object.assign(settings, savedSettings);
+               }
+            }
+          } catch (error) { console.error("Error loading data:", error); } 
+          finally { loadingData.value = false; }
+        };
+
+        const saveToCloud = async (colName, id, data) => {
+          if (!user.value || !db) return;
+          try { await setDoc(getPublicDoc(colName, id), data); } catch (e) { alert("保存に失敗しました。"); }
+        };
+        const deleteFromCloud = async (colName, id) => {
+          if (!user.value || !db) return;
+          try { await deleteDoc(getPublicDoc(colName, id)); } catch (e) {}
+        };
+
+        const sortBy = (key) => { if (sortConfig.key === key) { sortConfig.order = sortConfig.order === 'asc' ? 'desc' : 'asc'; } else { sortConfig.key = key; sortConfig.order = 'asc'; } };
+        const resetSort = () => { sortConfig.key = null; sortConfig.order = 'asc'; };
+        const downloadCSVTemplate = () => {
+          const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+          const blob = new Blob([bom, '名前,学年,背番号,ポジション\n山田太郎,2,10,FW\n鈴木一郎,1,15,MF\n'], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'students_template.csv'; a.click(); URL.revokeObjectURL(url);
+        };
+        const importStudentsCSV = (e) => {
+          const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
+          reader.onload = async (event) => {
+            loadingData.value = true;
+            try {
+              const lines = event.target.result.split('\n').filter(l => l.trim() !== '');
+              let batch = (db && user.value) ? writeBatch(db) : null;
+              let count = 0;
+              lines.forEach((line, index) => {
+                if (index === 0 && line.includes('名前')) return; 
+                const parts = line.split(',');
+                if(parts[0]?.trim()) {
+                  const sId = crypto.randomUUID();
+                  const student = { id: sId, name: parts[0].trim(), grade: parseInt(parts[1]?.trim()) || 1, number: parts[2]?.trim() || '', position: parts[3]?.trim() || '', isGraduated: false, createdAt: Date.now() };
+                  students.value.push(student);
+                  if (batch) batch.set(getPublicDoc('students', sId), student);
+                  count++;
+                }
+              });
+              if(batch && user.value) await batch.commit();
+              alert(`${count}名の生徒をインポートしました。`);
+            } catch (err) { alert("エラーが発生しました。"); } 
+            finally { loadingData.value = false; e.target.value = ''; }
+          };
+          reader.readAsText(file);
+        };
+        const openAddStudentModal = () => { Object.assign(studentForm, { id: null, name: '', grade: 1, number: '', position: '', isGraduated: false }); showStudentModal.value = true; };
+        const editStudent = (s) => { Object.assign(studentForm, JSON.parse(JSON.stringify(s))); showStudentModal.value = true; };
+        const saveStudent = async () => {
+          if (!studentForm.name) { alert('名前は必須です'); return; }
+          loadingData.value = true;
+          const isNew = !studentForm.id;
+          if (isNew) { studentForm.id = crypto.randomUUID(); studentForm.createdAt = Date.now(); }
+          const dataToSave = JSON.parse(JSON.stringify(studentForm));
+          if (isNew) students.value.push(dataToSave); else { const idx = students.value.findIndex(s => s.id === dataToSave.id); if(idx !== -1) students.value[idx] = dataToSave; }
+          showStudentModal.value = false;
+          await saveToCloud('students', dataToSave.id, dataToSave);
+          loadingData.value = false;
+        };
+        const deleteStudent = async (id) => { if(confirm("削除しますか？")) { students.value = students.value.filter(s => s.id !== id); await deleteFromCloud('students', id); } };
+        const updateAcademicYear = async () => {
+          if(!confirm("年度更新を実行しますか？")) return;
+          loadingData.value = true;
+          try {
+            let batch = (db && user.value) ? writeBatch(db) : null;
+            students.value.forEach(s => {
+               if(!s.isGraduated) { s.grade += 1; if(s.grade > 3) s.isGraduated = true; if (batch) batch.set(getPublicDoc('students', s.id), s); }
+            });
+            if(batch && user.value) await batch.commit(); alert("更新が完了しました。");
+          } catch(e) {} finally { loadingData.value = false; }
+        };
+        const getStudentName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name : '不明'; };
+        const getStudentNumber = (id) => { const s = students.value.find(st => st.id === id); return s && s.number ? s.number : ''; };
+        const getStudentShortName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name.split(' ')[0].split('　')[0].substring(0, 4) : ''; };
+
+        const openPracticeForm = () => {
+          Object.assign(practiceForm, getEmptyPracticeForm()); autoSetHoliday();
+          activeStudents.value.forEach(s => { practiceForm.attendance[s.id] = { status: '出席', reason: '', otherReason: '' }; });
+          isEditingPracticeMenus.value = false; isEditingPractice.value = true;
+        };
+        
         const editPractice = (p) => {
           Object.assign(practiceForm, JSON.parse(JSON.stringify(p))); 
           if (!practiceForm.weather) practiceForm.weather = '晴れ';
-          if (typeof practiceForm.isHoliday === 'undefined') {
-              const date = new Date(practiceForm.date);
-              practiceForm.isHoliday = (date.getDay() === 0 || date.getDay() === 6);
-          }
-          activeStudents.value.forEach(s => {
-             if(!practiceForm.attendance[s.id]) {
-                 practiceForm.attendance[s.id] = { status: '出席', reason: '', otherReason: '' };
-             } else {
-                 // 過去のデータ互換性処理（旧:コメント欄 → 新:その他理由）
-                 const att = practiceForm.attendance[s.id];
-                 if (att.status === '遅刻') att.status = '遅刻(30分)';
-                 if (typeof att.comment !== 'undefined') {
-                     if (att.comment !== '') {
-                         att.reason = 'その他';
-                         att.otherReason = att.comment;
-                     } else {
-                         att.reason = '';
-                         att.otherReason = '';
-                     }
-                     delete att.comment;
-                 }
-             }
+          if (typeof practiceForm.isHoliday === 'undefined') { practiceForm.isHoliday = (new Date(practiceForm.date).getDay() === 0 || new Date(practiceForm.date).getDay() === 6); }
+          
+          activeStudents.value.forEach(s => { 
+            if(!practiceForm.attendance[s.id]) {
+                practiceForm.attendance[s.id] = { status: '出席', reason: '', otherReason: '' }; 
+            } else {
+                // 過去のデータ互換性処理
+                const att = practiceForm.attendance[s.id];
+                if (att.status === '遅刻') att.status = '遅刻(30分)';
+                if (typeof att.comment !== 'undefined') {
+                    if (att.comment !== '') {
+                        att.reason = 'その他';
+                        att.otherReason = att.comment;
+                    } else {
+                        att.reason = '';
+                        att.otherReason = '';
+                    }
+                    delete att.comment;
+                }
+            }
           });
-          isEditingPracticeMenus.value = false;
-          isEditingPractice.value = true;
+          isEditingPracticeMenus.value = false; isEditingPractice.value = true;
         };
-
+        
         const setAttendance = (studentId, status) => { 
           if(practiceForm.attendance[studentId]) {
              practiceForm.attendance[studentId].status = status;
-             // 出席に戻したら理由をリセット
              if (status === '出席') {
                  practiceForm.attendance[studentId].reason = '';
                  practiceForm.attendance[studentId].otherReason = '';
              }
           }
         };
-
-        const getAttendanceCount = (practice, type) => {
+        
+        const getAttendanceCount = (practice, type) => { 
           if(!practice.attendance) return 0;
           return Object.values(practice.attendance).filter(a => {
             if (!a.status) return false;
-            // 「遅刻」で検索された場合は30分も1時間も合算する
             if (type === '遅刻') return a.status.includes('遅刻');
             return a.status === type;
-          }).length;
+          }).length; 
+        };
+        
+        const addMenuToPractice = (menu) => { practiceForm.menus.push(menu); };
+        const removeMenuFromPractice = (index) => { practiceForm.menus.splice(index, 1); };
+        const addSettingMenuInline = () => { const val = newPracticeMenuInput.value.trim(); if(val && !settings.practiceMenus.includes(val)) { settings.practiceMenus.push(val); newPracticeMenuInput.value = ''; saveSettings(); } };
+        const deleteSettingMenu = (index) => { if(confirm("削除しますか？")) { settings.practiceMenus.splice(index, 1); saveSettings(); } };
+        const savePractice = async () => {
+          if (!practiceForm.date) { alert("日付を入力してください"); return; }
+          const isNew = !practiceForm.id; if (isNew) practiceForm.id = crypto.randomUUID();
+          const dataToSave = JSON.parse(JSON.stringify(practiceForm));
+          if (isNew) practices.value.push(dataToSave); else { const idx = practices.value.findIndex(p => p.id === dataToSave.id); if(idx !== -1) practices.value[idx] = dataToSave; }
+          isEditingPractice.value = false; await saveToCloud('practices', dataToSave.id, dataToSave);
+        };
+        const deletePractice = async (id) => { if(confirm("削除しますか？")) { practices.value = practices.value.filter(p => p.id !== id); isEditingPractice.value = false; await deleteFromCloud('practices', id); } };
+
+        const openMatchForm = () => { Object.assign(matchForm, getEmptyMatchForm()); isEditingMatch.value = true; };
+        const editMatch = (m) => {
+          Object.assign(matchForm, JSON.parse(JSON.stringify(m)));
+          if(!matchForm.opponentPlayers) matchForm.opponentPlayers = []; if(!matchForm.studentComments) matchForm.studentComments = {}; if(!matchForm.lineup) matchForm.lineup = {};
+          if(!matchForm.formation) matchForm.formation = '4-2-3-1'; if(!matchForm.opponentFormation) matchForm.opponentFormation = '4-4-2'; if(!matchForm.opponentLineup) matchForm.opponentLineup = {};
+          isEditingMatch.value = true;
+        };
+        const handleFormationChange = () => {};
+        const getPositionName = (posId) => { const p = currentFormationPositions.value.find(pos => pos.id === posId) || currentOpponentFormationPositions.value.find(pos => pos.id === posId); return p ? p.name : ''; };
+        const openPlayerSelect = (posId) => { selectingPositionId.value = posId; isSelectingPlayer.value = true; };
+        const selectPlayerForPosition = (studentId) => {
+          if (studentId === null) { delete matchForm.lineup[selectingPositionId.value]; } 
+          else {
+            matchForm.lineup[selectingPositionId.value] = studentId; const posName = getPositionName(selectingPositionId.value);
+            if (!matchForm.studentComments[studentId]) { matchForm.studentComments[studentId] = { position: posName, comment: '' }; } else { matchForm.studentComments[studentId].position = posName; }
+          }
+          isSelectingPlayer.value = false; selectingPositionId.value = null;
+        };
+        const fillActiveStudentsToMatch = () => { activeStudents.value.forEach(s => { if(!matchForm.studentComments[s.id]) matchForm.studentComments[s.id] = { position: s.position || '', comment: '' }; }); };
+        const removeStudentFromMatch = (studentId) => { delete matchForm.studentComments[studentId]; for (const posId in matchForm.lineup) { if (matchForm.lineup[posId] === studentId) delete matchForm.lineup[posId]; } };
+        const saveCurrentLineup = () => {
+          const name = prompt("現在のスタメンに名前を付けて保存します。\n(例: Aチーム)");
+          if (!name) return;
+          if (!settings.savedLineups) settings.savedLineups = [];
+          settings.savedLineups.push({ id: crypto.randomUUID(), name: name, formation: matchForm.formation, lineup: JSON.parse(JSON.stringify(matchForm.lineup)) });
+          saveSettings(); alert("保存しました！");
+        };
+        const loadLineup = (lu) => {
+          if (!confirm(`「${lu.name}」を読み込みますか？`)) return;
+          matchForm.formation = lu.formation; matchForm.lineup = JSON.parse(JSON.stringify(lu.lineup));
+          for (const posId in matchForm.lineup) {
+             const studentId = matchForm.lineup[posId]; const posName = getPositionName(posId) || '';
+             if (!matchForm.studentComments[studentId]) { matchForm.studentComments[studentId] = { position: posName, comment: '' }; } else { matchForm.studentComments[studentId].position = posName; }
+          }
+          showLoadLineupModal.value = false;
+        };
+        const deleteSavedLineup = (id) => { if(!confirm("削除しますか？")) return; settings.savedLineups = settings.savedLineups.filter(lu => lu.id !== id); saveSettings(); };
+
+        const openOpponentPlayerSelect = (posId) => {
+          selectingOpponentPositionId.value = posId;
+          const current = matchForm.opponentLineup[posId];
+          if (current) Object.assign(opponentPlayerForm, JSON.parse(JSON.stringify(current))); else Object.assign(opponentPlayerForm, { number: '', name: '', features: '' });
+          isSelectingOpponentPlayer.value = true;
+        };
+        const saveOpponentPlayerForPosition = () => { matchForm.opponentLineup[selectingOpponentPositionId.value] = JSON.parse(JSON.stringify(opponentPlayerForm)); isSelectingOpponentPlayer.value = false; selectingOpponentPositionId.value = null; };
+        const removeOpponentPlayerForPosition = () => { delete matchForm.opponentLineup[selectingOpponentPositionId.value]; isSelectingOpponentPlayer.value = false; selectingOpponentPositionId.value = null; };
+        const removeOpponentPlayerForPositionFromList = (posId) => { delete matchForm.opponentLineup[posId]; };
+        const addOpponentPlayer = () => { matchForm.opponentPlayers.push({ number: '', name: '', features: '' }); };
+        const removeOpponentPlayer = (index) => { matchForm.opponentPlayers.splice(index, 1); };
+        const saveMatch = async () => {
+          const isNew = !matchForm.id; if (isNew) matchForm.id = crypto.randomUUID();
+          const dataToSave = JSON.parse(JSON.stringify(matchForm));
+          if (isNew) matches.value.push(dataToSave); else { const idx = matches.value.findIndex(m => m.id === dataToSave.id); if(idx !== -1) matches.value[idx] = dataToSave; }
+          isEditingMatch.value = false; await saveToCloud('matches', dataToSave.id, dataToSave);
+        };
+        const deleteMatch = async (id) => { if(confirm("削除しますか？")) { matches.value = matches.value.filter(m => m.id !== id); isEditingMatch.value = false; await deleteFromCloud('matches', id); } };
+
+        const openMemoForm = () => { Object.assign(memoForm, getEmptyMemoForm()); isEditingMemo.value = true; };
+        const editMemo = (m) => { Object.assign(memoForm, JSON.parse(JSON.stringify(m))); isEditingMemo.value = true; };
+        const saveMemo = async () => {
+          if (!memoForm.title) { alert("タイトルを入力してください"); return; }
+          loadingData.value = true;
+          const isNew = !memoForm.id; if (isNew) { memoForm.id = crypto.randomUUID(); }
+          memoForm.updatedAt = Date.now();
+          const dataToSave = JSON.parse(JSON.stringify(memoForm));
+          if (isNew) memos.value.push(dataToSave); else { const idx = memos.value.findIndex(m => m.id === dataToSave.id); if(idx !== -1) memos.value[idx] = dataToSave; }
+          isEditingMemo.value = false; await saveToCloud('memos', dataToSave.id, dataToSave); loadingData.value = false;
+        };
+        const deleteMemo = async (id) => { if(confirm("削除しますか？")) { memos.value = memos.value.filter(m => m.id !== id); isEditingMemo.value = false; await deleteFromCloud('memos', id); } };
+
+        const saveFirebaseConfig = () => {
+          try {
+            let configText = firebaseConfigInput.value.trim();
+            if (!configText) { alert("設定が入力されていません。"); return; }
+            const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+            const configObj = {}; let isExtracted = true;
+            for (const key of keys) {
+               const match = configText.match(new RegExp(`["'“”]?${key}["'“”]?\\s*:\\s*["'“”]([^"'“”]+)["'“”]`));
+               if (match && match[1]) configObj[key] = match[1]; else { isExtracted = false; break; }
+            }
+            if (isExtracted) { localStorage.setItem('soccer_mgr_firebase_config', JSON.stringify(configObj, null, 2)); } 
+            else {
+              configText = configText.replace(/[“”″]/g, '"').replace(/[‘’′]/g, "'").replace(/　/g, ' ').replace(/,\s*}/g, '}').replace(/[\u200B-\u200D\uFEFF]/g, ''); 
+              JSON.parse(configText); localStorage.setItem('soccer_mgr_firebase_config', configText);
+            }
+            alert("Firebase設定を保存しました。アプリを再読み込みして適用します。"); window.location.reload();
+          } catch(e) { alert("設定を読み取れませんでした。"); }
+        };
+        const clearFirebaseConfig = () => { if(confirm("Firebase設定をクリアし、標準環境に戻しますか？")) { localStorage.removeItem('soccer_mgr_firebase_config'); firebaseConfigInput.value = ''; window.location.reload(); } };
+        const saveSettings = async () => { await saveToCloud('settings', 'app_settings', Object.assign({}, settings)); };
+        const addPracticeMenu = () => { const val = newMenuName.value.trim(); if(val && !settings.practiceMenus.includes(val)) { settings.practiceMenus.push(val); newMenuName.value = ''; saveSettings(); } };
+        const removePracticeMenu = (index) => { settings.practiceMenus.splice(index, 1); saveSettings(); };
+
+        const exportJSON = () => {
+          const data = { version, exportDate: new Date().toISOString(), students: students.value, practices: practices.value, matches: matches.value, memos: memos.value, settings };
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `soccer_team_backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url);
+        };
+        const importJSON = (e) => {
+          const file = e.target.files[0]; if(!file) return;
+          if(!confirm("現在のデータを上書きし、復元を実行しますか？")) { e.target.value = ''; return; }
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            loadingData.value = true;
+            try {
+              const data = JSON.parse(event.target.result);
+              if(data.students) students.value = data.students; if(data.practices) practices.value = data.practices; if(data.matches) matches.value = data.matches; if(data.memos) memos.value = data.memos;
+              if(data.settings) { if(!data.settings.savedLineups) data.settings.savedLineups = []; Object.assign(settings, data.settings); }
+              if (user.value && db) {
+                const batch = writeBatch(db);
+                if(data.students) data.students.forEach(s => batch.set(getPublicDoc('students', s.id), s));
+                if(data.practices) data.practices.forEach(p => batch.set(getPublicDoc('practices', p.id), p));
+                if(data.matches) data.matches.forEach(m => batch.set(getPublicDoc('matches', m.id), m));
+                if(data.memos) data.memos.forEach(m => batch.set(getPublicDoc('memos', m.id), m));
+                if(data.settings) batch.set(getPublicDoc('settings', 'app_settings'), data.settings);
+                await batch.commit(); alert("復元が完了しました。");
+              } else { alert("ローカルデータとして復元しました。"); }
+            } catch (err) { alert("ファイルの読み込みに失敗しました。"); } finally { loadingData.value = false; e.target.value = ''; }
+          };
+          reader.readAsText(file);
         };
 
-        const addMenuToPractice = (menu) => { practiceForm.menus.push(menu); };
-<!-- ... existing code ... -->
+        return {
+          version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
+          students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, getStudentShortName, getStudentNumber, studentStats, sortConfig, sortBy, resetSort,
+          downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
+          getWeekday, autoSetHoliday, formatDate,
+          practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
+          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
+          memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
+          settings, newMenuName, addPracticeMenu, removePracticeMenu, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON
+        };
+      }
+    }).mount('#app');
+  </script>
+
+  <style type="text/tailwindcss">
+    @layer components {
+      .nav-btn { @apply flex items-center p-3 w-full text-slate-400 hover:text-white rounded-xl transition-all duration-200 hover:bg-slate-800/50 relative overflow-hidden; }
+      .nav-btn.active { @apply text-emerald-400 bg-emerald-500/10 font-bold; }
+      .nav-btn.active::before { content: ''; @apply absolute left-0 top-0 h-full w-1 bg-emerald-400 rounded-r-md; }
+      
+      .btn-primary { @apply bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-5 py-2 rounded-lg font-medium hover:from-emerald-500 hover:to-teal-400 transition-all shadow-md active:scale-95 text-sm md:text-base; }
+      .btn-secondary { @apply bg-slate-800 border border-slate-700 text-slate-300 px-5 py-2 rounded-lg font-medium hover:bg-slate-700 hover:text-white transition-all active:scale-95 text-sm md:text-base; }
+      .btn-warning { @apply bg-gradient-to-r from-amber-600 to-orange-500 text-white px-5 py-2 rounded-lg font-medium hover:from-amber-500 hover:to-orange-400 transition-all shadow-md active:scale-95 text-sm md:text-base; }
+
+      .form-input { @apply w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition placeholder-slate-600; }
+      .form-label { @apply block text-sm font-bold text-slate-300 mb-2; }
+    }
+  </style>
+</body>
+</html>
