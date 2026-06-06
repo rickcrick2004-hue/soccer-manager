@@ -984,6 +984,7 @@
         const firebaseConfigInput = ref('');
 
         // --- Database Path Helpers ---
+        // ここが元の「チーム共有の引き出し」を参照するように修正
         const getPublicCollection = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
         const getPublicDoc = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
 
