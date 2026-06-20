@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.9.4</title>
+  <title>Soccer Team Manager v1.9.5</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -26,7 +26,6 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    /* アニメーションやスクロールバーなどの標準CSSはここに分離（デザイン崩れ防止） */
     .fade-in {
       animation: fadeIn 0.4s ease-out forwards;
     }
@@ -106,27 +105,30 @@
         <!-- DASHBOARD VIEW -->
         <div v-if="currentView === 'dashboard'" class="space-y-6 fade-in">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="glass-panel rounded-2xl p-6 border-l-4 border-l-blue-500">
-              <div class="text-slate-400 text-sm font-medium">現役生徒数</div>
+            <div class="glass-panel rounded-2xl p-6 border-l-4 border-l-blue-500 cursor-pointer hover:bg-slate-800 transition shadow-lg group" @click="currentView = 'students'">
+              <div class="text-slate-400 text-sm font-medium group-hover:text-blue-400 transition">現役生徒数 <i class="fa-solid fa-arrow-up-right-from-square ml-1 opacity-0 group-hover:opacity-100"></i></div>
               <div class="text-4xl font-bold text-white mt-2">{{ activeStudents.length }}<span class="text-base font-normal text-slate-500 ml-2">名</span></div>
             </div>
-            <div class="glass-panel rounded-2xl p-6 border-l-4 border-l-emerald-500">
-              <div class="text-slate-400 text-sm font-medium">今月の練習回数</div>
+            <div class="glass-panel rounded-2xl p-6 border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-800 transition shadow-lg group" @click="currentView = 'practice'">
+              <div class="text-slate-400 text-sm font-medium group-hover:text-emerald-400 transition">今月の練習回数 <i class="fa-solid fa-arrow-up-right-from-square ml-1 opacity-0 group-hover:opacity-100"></i></div>
               <div class="text-4xl font-bold text-white mt-2">{{ practices.length }}<span class="text-base font-normal text-slate-500 ml-2">回</span></div>
             </div>
-            <div class="glass-panel rounded-2xl p-6 border-l-4 border-l-amber-500">
-              <div class="text-slate-400 text-sm font-medium">総試合数</div>
+            <div class="glass-panel rounded-2xl p-6 border-l-4 border-l-amber-500 cursor-pointer hover:bg-slate-800 transition shadow-lg group" @click="currentView = 'match'">
+              <div class="text-slate-400 text-sm font-medium group-hover:text-amber-400 transition">総試合数 <i class="fa-solid fa-arrow-up-right-from-square ml-1 opacity-0 group-hover:opacity-100"></i></div>
               <div class="text-4xl font-bold text-white mt-2">{{ matches.length }}<span class="text-base font-normal text-slate-500 ml-2">試合</span></div>
             </div>
           </div>
           
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-            <div class="glass-panel rounded-2xl p-6">
-              <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">最近の練習</h3>
+            <div class="glass-panel rounded-2xl p-6 flex flex-col h-full">
+              <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                <h3 class="text-lg font-bold text-white">最近の練習</h3>
+                <button @click="currentView = 'practice'" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded transition border border-slate-600">すべて見る <i class="fa-solid fa-angle-right ml-1"></i></button>
+              </div>
               <div v-if="sortedPractices.length === 0" class="text-slate-500 text-sm text-center py-4">記録がありません</div>
-              <ul class="space-y-3">
-                <li v-for="p in sortedPractices.slice(0, 5)" :key="p.id" class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg">
-                  <div>
+              <ul class="space-y-3 flex-1">
+                <li v-for="p in sortedPractices.slice(0, 5)" :key="p.id" class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg border border-transparent hover:border-slate-600 transition">
+                  <div class="flex-1">
                     <span class="text-emerald-400 font-mono text-sm">{{ p.date }} ({{ getWeekday(p.date) }})</span>
                     <span v-if="p.isHoliday" class="text-xs border border-amber-600/50 text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded ml-1">休日</span>
                     <span class="ml-2 text-slate-300 text-sm">
@@ -136,24 +138,28 @@
                       <template v-else>メニュー未登録</template>
                     </span>
                   </div>
-                  <button @click="editPractice(p)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-right"></i></button>
+                  <button @click="editPracticeFromDashboard(p)" class="text-slate-400 hover:text-emerald-400 transition p-2 ml-2 bg-slate-800 rounded-lg"><i class="fa-solid fa-chevron-right"></i></button>
                 </li>
               </ul>
             </div>
-            <div class="glass-panel rounded-2xl p-6">
-              <h3 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">最近の試合</h3>
+            
+            <div class="glass-panel rounded-2xl p-6 flex flex-col h-full">
+              <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                <h3 class="text-lg font-bold text-white">最近の試合</h3>
+                <button @click="currentView = 'match'" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded transition border border-slate-600">すべて見る <i class="fa-solid fa-angle-right ml-1"></i></button>
+              </div>
               <div v-if="sortedMatches.length === 0" class="text-slate-500 text-sm text-center py-4">記録がありません</div>
-              <ul class="space-y-3">
-                <li v-for="m in sortedMatches.slice(0, 5)" :key="m.id" class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg">
-                  <div>
+              <ul class="space-y-3 flex-1">
+                <li v-for="m in sortedMatches.slice(0, 5)" :key="m.id" class="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg border border-transparent hover:border-slate-600 transition">
+                  <div class="flex-1">
                     <span class="text-amber-400 font-mono text-sm">{{ m.date }}</span>
-                    <span class="ml-3 text-slate-200 font-bold">vs {{ m.opponent }}</span>
+                    <span class="ml-3 text-slate-200 font-bold truncate">vs {{ m.opponent }}</span>
                   </div>
                   <div class="flex items-center gap-4">
                     <span class="text-xl font-black" :class="m.scoreUs > m.scoreThem ? 'text-emerald-500' : (m.scoreUs < m.scoreThem ? 'text-red-500' : 'text-slate-400')">
                       {{ m.scoreUs }} - {{ m.scoreThem }}
                     </span>
-                    <button @click="editMatch(m)" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-chevron-right"></i></button>
+                    <button @click="editMatchFromDashboard(m)" class="text-slate-400 hover:text-amber-400 transition p-2 bg-slate-800 rounded-lg"><i class="fa-solid fa-chevron-right"></i></button>
                   </div>
                 </li>
               </ul>
@@ -442,31 +448,29 @@
               </div>
             </div>
 
+            <!-- 出欠状況のテーブル変更点（理由をすぐ横に） -->
             <div class="mb-8 border-t border-slate-700 pt-6">
-              <label class="block text-sm font-bold text-emerald-400 mb-4"><i class="fa-solid fa-clipboard-user mr-2"></i>出欠状況・理由</label>
+              <label class="block text-sm font-bold text-emerald-400 mb-4"><i class="fa-solid fa-clipboard-user mr-2"></i>出欠状況 ＆ 理由</label>
               <div class="bg-slate-900/50 rounded-xl p-4 overflow-x-auto">
-                <table class="w-full text-left min-w-[850px]">
+                <table class="w-full text-left min-w-[700px]">
                   <thead>
                     <tr class="text-slate-400 text-xs uppercase border-b border-slate-700">
                       <th class="pb-2 w-32">名前</th>
-                      <th class="pb-2 w-auto">出欠状況</th>
-                      <th class="pb-2 w-72">理由</th>
+                      <th class="pb-2">出欠状況 と 理由</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="s in activeStudents" :key="s.id" class="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/20">
                       <td class="py-3 font-medium text-slate-200">{{ s.name }}</td>
-                      <td class="py-3 pr-4">
-                        <div class="flex rounded-lg overflow-hidden border border-slate-700 w-max text-xs">
+                      <td class="py-3 pr-2 flex items-center gap-3">
+                        <div class="flex rounded-lg overflow-hidden border border-slate-700 w-max text-xs shrink-0">
                           <button type="button" @click="setAttendance(s.id, '出席')" :class="['px-3 py-1.5 font-medium transition', practiceForm.attendance[s.id]?.status === '出席' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">出席</button>
                           <button type="button" @click="setAttendance(s.id, '欠席')" :class="['px-3 py-1.5 font-medium transition border-l border-slate-700', practiceForm.attendance[s.id]?.status === '欠席' ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">欠席</button>
                           <button type="button" @click="setAttendance(s.id, '遅刻(30分)')" :class="['px-3 py-1.5 font-medium transition border-l border-slate-700', practiceForm.attendance[s.id]?.status === '遅刻(30分)' ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">遅刻(30分)</button>
                           <button type="button" @click="setAttendance(s.id, '遅刻(1時間)')" :class="['px-3 py-1.5 font-medium transition border-l border-slate-700', practiceForm.attendance[s.id]?.status === '遅刻(1時間)' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">遅刻(1時間)</button>
                           <button type="button" @click="setAttendance(s.id, '早退')" :class="['px-3 py-1.5 font-medium transition border-l border-slate-700', practiceForm.attendance[s.id]?.status === '早退' ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">早退</button>
                         </div>
-                      </td>
-                      <td class="py-3 pr-2 flex items-center gap-2">
-                        <select v-model="practiceForm.attendance[s.id].reason" class="form-input text-xs py-1.5 px-2 w-32" :disabled="practiceForm.attendance[s.id]?.status === '出席'">
+                        <select v-model="practiceForm.attendance[s.id].reason" class="form-input text-xs py-1.5 px-2 w-28 shrink-0" :disabled="practiceForm.attendance[s.id]?.status === '出席'">
                           <option value="">理由を選択</option>
                           <option value="朝学">朝学</option>
                           <option value="体調不良">体調不良</option>
@@ -474,7 +478,7 @@
                           <option value="用事">用事</option>
                           <option value="その他">その他</option>
                         </select>
-                        <input v-if="practiceForm.attendance[s.id].reason === 'その他'" type="text" v-model="practiceForm.attendance[s.id].otherReason" placeholder="理由を入力..." class="form-input text-xs py-1.5 px-2 flex-1 outline-none">
+                        <input v-if="practiceForm.attendance[s.id].reason === 'その他'" type="text" v-model="practiceForm.attendance[s.id].otherReason" placeholder="理由を入力..." class="form-input text-xs py-1.5 px-2 flex-1 outline-none min-w-[150px]">
                       </td>
                     </tr>
                   </tbody>
@@ -871,7 +875,7 @@
         <!-- SETTINGS VIEW -->
         <div v-if="currentView === 'settings'" class="space-y-8 fade-in max-w-4xl">
           
-          <!-- Firebase設定 UI追加 -->
+          <!-- Firebase設定 -->
           <div class="glass-panel rounded-2xl p-6 border border-slate-700">
             <h2 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2 flex justify-between items-center">
               <span><i class="fa-solid fa-cloud mr-2 text-slate-400"></i>Firebase設定 (独自のクラウド保存)</span>
@@ -1008,7 +1012,7 @@
 
     createApp({
       setup() {
-        const version = "1.9.4";
+        const version = "1.9.5";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -1308,24 +1312,30 @@
             if(!practiceForm.attendance[s.id]) {
                 practiceForm.attendance[s.id] = { status: '出席', reason: '', otherReason: '' }; 
             } else {
-                // 過去のデータ互換性処理
                 const att = practiceForm.attendance[s.id];
                 if (att.status === '遅刻') att.status = '遅刻(30分)';
                 if (typeof att.comment !== 'undefined') {
-                    if (att.comment !== '') {
-                        att.reason = 'その他';
-                        att.otherReason = att.comment;
-                    } else {
-                        att.reason = '';
-                        att.otherReason = '';
-                    }
+                    if (att.comment !== '') { att.reason = 'その他'; att.otherReason = att.comment; } 
+                    else { att.reason = ''; att.otherReason = ''; }
                     delete att.comment;
                 }
             }
           });
           isEditingPracticeMenus.value = false; isEditingPractice.value = true;
         };
+
+        // --- 追加：ダッシュボードからのジャンプ用メソッド ---
+        const editPracticeFromDashboard = (p) => {
+          currentView.value = 'practice';
+          editPractice(p);
+        };
         
+        const editMatchFromDashboard = (m) => {
+          currentView.value = 'match';
+          editMatch(m);
+        };
+        // ------------------------------------------------
+
         const setAttendance = (studentId, status) => { 
           if(practiceForm.attendance[studentId]) {
              practiceForm.attendance[studentId].status = status;
@@ -1486,8 +1496,8 @@
           downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
           showStudentDetailModal, selectedStudentForDetail, selectedStudentAttendanceHistory, openStudentDetail,
           getWeekday, autoSetHoliday, formatDate,
-          practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
-          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
+          practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
+          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
           settings, newMenuName, addPracticeMenu, removePracticeMenu, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON
         };
