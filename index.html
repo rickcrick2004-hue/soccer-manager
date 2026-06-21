@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.9.6</title>
+  <title>Soccer Team Manager v1.9.7</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -399,7 +399,7 @@
                 <div class="flex justify-between items-end mb-2">
                   <label class="block text-sm font-bold text-slate-300">時間</label>
                 </div>
-                <!-- 追加：時間パターンのワンタップ入力 -->
+                <!-- 時間パターンのワンタップ入力 -->
                 <div class="flex flex-wrap gap-1 mb-2">
                    <button v-for="(pat, idx) in settings.timePatterns" :key="idx" type="button" 
                            @click="practiceForm.startTime = pat.start; practiceForm.endTime = pat.end" 
@@ -415,7 +415,7 @@
               </div>
             </div>
 
-            <!-- メニュー選択（順番保持・リスト管理付き） -->
+            <!-- メニュー選択 -->
             <div class="mb-8 border-t border-slate-700 pt-6">
               <div class="flex justify-between items-end mb-4">
                 <label class="block text-sm font-bold text-emerald-400"><i class="fa-solid fa-list-ol mr-2"></i>実施したメニュー (クリックで順番に追加)</label>
@@ -559,7 +559,7 @@
 
           <!-- Form Mode -->
           <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative">
-            <button @click="isEditingMatch = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <button @click="isEditingMatch = false; resetQuickRecord()" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-2xl font-bold text-white mb-6 border-b border-slate-700 pb-4"><span class="text-amber-500 mr-2">|</span>{{ matchForm.id ? '試合記録の編集' : '新規試合記録' }}</h2>
             
             <!-- Basic Info -->
@@ -580,6 +580,66 @@
               <div><label class="form-label">審判</label><input type="text" v-model="matchForm.referee" class="form-input" placeholder="主審:〇〇"></div>
             </div>
 
+            <!-- ワンタップ記録モード -->
+            <div class="glass-panel bg-slate-800/50 rounded-xl p-5 mb-8 border border-blue-500/30">
+              <h3 class="text-lg font-bold text-blue-400 mb-4 flex justify-between items-center">
+                <span><i class="fa-solid fa-stopwatch mr-2"></i>ワンタップ記録モード <span class="text-xs text-slate-400 font-normal ml-2">※マネージャー用</span></span>
+              </h3>
+              
+              <!-- タイマー -->
+              <div class="flex items-center justify-center gap-4 mb-6 bg-slate-900/50 p-4 rounded-lg">
+                <div class="flex gap-2 bg-slate-800 p-1 rounded-lg">
+                  <button type="button" @click="matchTimer.period = '前半'" :class="['px-3 py-1 text-sm rounded transition', matchTimer.period === '前半' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white']">前半</button>
+                  <button type="button" @click="matchTimer.period = '後半'" :class="['px-3 py-1 text-sm rounded transition', matchTimer.period === '後半' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white']">後半</button>
+                </div>
+                <div class="text-4xl font-mono font-bold text-white tracking-widest w-24 text-center">
+                  {{ formatTimer(matchTimer.seconds) }}
+                </div>
+                <div class="flex gap-2">
+                  <button type="button" @click="toggleMatchTimer" class="w-12 h-12 rounded-full flex items-center justify-center transition" :class="matchTimer.isRunning ? 'bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 border border-amber-500/50' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/50'">
+                    <i class="fa-solid" :class="matchTimer.isRunning ? 'fa-pause' : 'fa-play'"></i>
+                  </button>
+                  <button type="button" @click="resetTimer" class="w-10 h-10 mt-1 rounded-full flex items-center justify-center bg-slate-700 text-slate-400 hover:text-white hover:bg-slate-600 transition" title="リセット">
+                    <i class="fa-solid fa-rotate-right text-sm"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 選手選択 -->
+                <div>
+                  <label class="block text-sm font-bold text-slate-300 mb-2">1. 選手を選択</label>
+                  <div class="flex flex-wrap gap-2 max-h-40 overflow-y-auto custom-scrollbar p-1">
+                    <button type="button" v-for="(comment, sId) in matchForm.studentComments" :key="sId" 
+                            @click="setQuickRecordPlayer(sId)"
+                            :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === sId ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700']">
+                      {{ getStudentShortName(sId) }}
+                    </button>
+                    <button type="button" @click="setQuickRecordPlayer('opponent')"
+                            :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === 'opponent' ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700']">
+                      相手チーム
+                    </button>
+                    <div v-if="Object.keys(matchForm.studentComments).length === 0" class="text-xs text-slate-500 w-full py-2 border-t border-slate-700 mt-2">
+                      ※下部の「出場選手」にメンバーを追加すると、ここにボタンが表示されます。
+                    </div>
+                  </div>
+                </div>
+                <!-- アクション選択 -->
+                <div>
+                  <label class="block text-sm font-bold text-slate-300 mb-2">2. アクションを選択</label>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button type="button" @click="addQuickRecordAction('得点')" class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 py-2 rounded hover:bg-emerald-600/40 transition font-bold active:scale-95 shadow">得点</button>
+                    <button type="button" @click="addQuickRecordAction('アシスト')" class="bg-blue-600/20 text-blue-400 border border-blue-500/30 py-2 rounded hover:bg-blue-600/40 transition font-bold active:scale-95 shadow">アシスト</button>
+                    <button type="button" @click="addQuickRecordAction('シュート')" class="bg-slate-700 text-slate-300 border border-slate-600 py-2 rounded hover:bg-slate-600 transition font-bold active:scale-95 shadow">シュート</button>
+                    <button type="button" @click="addQuickRecordAction('交代IN')" class="bg-slate-700 text-slate-300 border border-slate-600 py-2 rounded hover:bg-slate-600 transition font-bold active:scale-95 shadow">交代IN</button>
+                    <button type="button" @click="addQuickRecordAction('交代OUT')" class="bg-slate-700 text-slate-300 border border-slate-600 py-2 rounded hover:bg-slate-600 transition font-bold active:scale-95 shadow">交代OUT</button>
+                    <button type="button" @click="addQuickRecordAction('警告')" class="bg-amber-500/20 text-amber-400 border border-amber-500/30 py-2 rounded hover:bg-amber-500/40 transition font-bold active:scale-95 shadow">警告</button>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-3"><i class="fa-solid fa-circle-info mr-1"></i>ボタンを押すと、下の「詳細」欄に自動追記され、得点も加算されます。</p>
+                </div>
+              </div>
+            </div>
+
             <!-- Result -->
             <div class="glass-panel bg-slate-800/50 rounded-xl p-6 mb-8 border border-slate-700 shadow-inner">
               <h3 class="text-lg font-bold text-white mb-4 text-center">試合結果</h3>
@@ -595,8 +655,8 @@
                 </div>
               </div>
               <div>
-                <label class="form-label">得点者・詳細 (例: 前半15分 山田, 後半10分 失点)</label>
-                <textarea v-model="matchForm.scorers" rows="2" class="form-input resize-y" placeholder="得点経過を自由記述..."></textarea>
+                <label class="form-label">得点者・詳細 (自動入力または自由記述)</label>
+                <textarea v-model="matchForm.scorers" rows="3" class="form-input resize-y" placeholder="前半15分 山田 得点&#10;後半10分 失点..."></textarea>
               </div>
             </div>
 
@@ -606,8 +666,8 @@
                 <h3 class="text-emerald-400 font-bold mb-4 border-b border-slate-700 pb-2 flex justify-between items-center">
                   <span><i class="fa-solid fa-shield-halved mr-2"></i>フォーメーション＆出場選手</span>
                   <div class="flex gap-2">
-                    <button @click="saveCurrentLineup" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded transition"><i class="fa-solid fa-floppy-disk mr-1"></i>保存</button>
-                    <button @click="showLoadLineupModal = true" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition border border-slate-600"><i class="fa-solid fa-folder-open mr-1"></i>読込</button>
+                    <button type="button" @click="saveCurrentLineup" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded transition"><i class="fa-solid fa-floppy-disk mr-1"></i>保存</button>
+                    <button type="button" @click="showLoadLineupModal = true" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition border border-slate-600"><i class="fa-solid fa-folder-open mr-1"></i>読込</button>
                   </div>
                 </h3>
                 <div class="mb-6 flex gap-4 items-center">
@@ -655,7 +715,7 @@
                 <div class="mt-auto">
                   <label class="form-label flex justify-between items-center">
                     <span>出場選手・個別評価</span>
-                    <button @click="fillActiveStudentsToMatch" class="text-xs bg-emerald-600/20 text-emerald-400 px-2 py-1 rounded hover:bg-emerald-600/40 transition">現役全員をリストに追加</button>
+                    <button type="button" @click="fillActiveStudentsToMatch" class="text-xs bg-emerald-600/20 text-emerald-400 px-2 py-1 rounded hover:bg-emerald-600/40 transition">現役全員をリストに追加</button>
                   </label>
                   <div class="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                     <div v-if="Object.keys(matchForm.studentComments).length === 0" class="text-sm text-slate-500 text-center py-4 bg-slate-900/50 rounded border border-slate-800">
@@ -664,7 +724,7 @@
                     <div v-for="(comment, studentId) in matchForm.studentComments" :key="studentId" class="flex flex-col bg-slate-800 p-2.5 rounded border border-slate-700/50">
                       <div class="text-sm text-white font-medium mb-1.5 flex justify-between">
                         <span><span class="text-emerald-400 font-mono text-xs mr-1">{{ getStudentNumber(studentId) }}</span>{{ getStudentName(studentId) }}</span>
-                        <button @click="removeStudentFromMatch(studentId)" class="text-slate-500 hover:text-red-400 transition"><i class="fa-solid fa-xmark"></i></button>
+                        <button type="button" @click="removeStudentFromMatch(studentId)" class="text-slate-500 hover:text-red-400 transition"><i class="fa-solid fa-xmark"></i></button>
                       </div>
                       <div class="flex gap-2">
                         <input type="text" v-model="matchForm.studentComments[studentId].position" placeholder="Pos" class="w-16 form-input text-xs py-1 px-2">
@@ -731,7 +791,7 @@
                         <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
                         <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
                         <input type="text" v-model="p.features" placeholder="特徴 (足が速い等)" class="flex-1 form-input text-xs py-1 px-2">
-                        <button @click="removeOpponentPlayerForPositionFromList(posId)" class="text-slate-500 hover:text-red-400 p-1 shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                        <button type="button" @click="removeOpponentPlayerForPositionFromList(posId)" class="text-slate-500 hover:text-red-400 p-1 shrink-0"><i class="fa-solid fa-xmark"></i></button>
                      </div>
 
                      <!-- その他の選手 (opponentPlayers) -->
@@ -740,10 +800,10 @@
                         <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
                         <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
                         <input type="text" v-model="p.features" placeholder="特徴 (足が速い等)" class="flex-1 form-input text-xs py-1 px-2">
-                        <button @click="removeOpponentPlayer(index)" class="text-red-400 hover:text-red-300 p-1 shrink-0"><i class="fa-solid fa-trash"></i></button>
+                        <button type="button" @click="removeOpponentPlayer(index)" class="text-red-400 hover:text-red-300 p-1 shrink-0"><i class="fa-solid fa-trash"></i></button>
                      </div>
                   </div>
-                  <button @click="addOpponentPlayer" class="text-xs text-amber-400 border border-amber-400/30 px-3 py-1 rounded hover:bg-amber-400/10 w-full transition"><i class="fa-solid fa-plus mr-1"></i>スタメン以外の相手選手を追加</button>
+                  <button type="button" @click="addOpponentPlayer" class="text-xs text-amber-400 border border-amber-400/30 px-3 py-1 rounded hover:bg-amber-400/10 w-full transition"><i class="fa-solid fa-plus mr-1"></i>スタメン以外の相手選手を追加</button>
                 </div>
               </div>
             </div>
@@ -754,11 +814,11 @@
             </div>
 
             <div class="flex justify-between items-center border-t border-slate-700 pt-6">
-              <button v-if="matchForm.id" @click="deleteMatch(matchForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
+              <button type="button" v-if="matchForm.id" @click="deleteMatch(matchForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
               <div v-else></div>
               <div class="flex space-x-3">
-                <button @click="isEditingMatch = false" class="btn-secondary">キャンセル</button>
-                <button @click="saveMatch" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
+                <button type="button" @click="isEditingMatch = false; resetQuickRecord()" class="btn-secondary">キャンセル</button>
+                <button type="button" @click="saveMatch" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
               </div>
             </div>
             
@@ -767,13 +827,13 @@
                <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl">
                  <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
                    <h4 class="text-white font-bold"><span class="text-emerald-400 mr-1">{{ getPositionName(selectingPositionId) }}</span>の選手を選択</h4>
-                   <button @click="isSelectingPlayer = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                   <button type="button" @click="isSelectingPlayer = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
                  </div>
                  <div class="max-h-64 overflow-y-auto custom-scrollbar p-2">
-                   <button @click="selectPlayerForPosition(null)" class="w-full text-left px-4 py-3 text-red-400 hover:bg-slate-700 rounded transition border-b border-slate-700/50 mb-1 flex items-center">
+                   <button type="button" @click="selectPlayerForPosition(null)" class="w-full text-left px-4 py-3 text-red-400 hover:bg-slate-700 rounded transition border-b border-slate-700/50 mb-1 flex items-center">
                      <i class="fa-solid fa-eraser mr-2"></i>配置を解除する
                    </button>
-                   <button v-for="s in activeStudents" :key="s.id" @click="selectPlayerForPosition(s.id)" class="w-full text-left px-4 py-2.5 text-slate-200 hover:bg-slate-700 rounded transition flex items-center justify-between">
+                   <button type="button" v-for="s in activeStudents" :key="s.id" @click="selectPlayerForPosition(s.id)" class="w-full text-left px-4 py-2.5 text-slate-200 hover:bg-slate-700 rounded transition flex items-center justify-between">
                      <span><span class="text-emerald-400 font-mono w-6 inline-block">{{ s.number || '-' }}</span> {{ s.name }}</span>
                      <span class="text-xs text-slate-500">{{ s.position }}</span>
                    </button>
@@ -786,7 +846,7 @@
                <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl">
                  <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
                    <h4 class="text-white font-bold"><span class="text-amber-400 mr-1">{{ getPositionName(selectingOpponentPositionId) }}</span>の相手選手を登録</h4>
-                   <button @click="isSelectingOpponentPlayer = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                   <button type="button" @click="isSelectingOpponentPlayer = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
                  </div>
                  <div class="p-4 space-y-4">
                    <div class="flex gap-4">
@@ -805,8 +865,8 @@
                    </div>
                    
                    <div class="flex justify-between pt-2">
-                     <button @click="removeOpponentPlayerForPosition" class="text-red-400 hover:text-red-300 text-sm py-2 px-3 transition"><i class="fa-solid fa-eraser mr-1"></i>配置解除</button>
-                     <button @click="saveOpponentPlayerForPosition" class="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium transition shadow-lg shadow-amber-600/20">決定</button>
+                     <button type="button" @click="removeOpponentPlayerForPosition" class="text-red-400 hover:text-red-300 text-sm py-2 px-3 transition"><i class="fa-solid fa-eraser mr-1"></i>配置解除</button>
+                     <button type="button" @click="saveOpponentPlayerForPosition" class="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2 rounded-lg font-medium transition shadow-lg shadow-amber-600/20">決定</button>
                    </div>
                  </div>
                </div>
@@ -817,7 +877,7 @@
                <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80%]">
                  <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0">
                    <h4 class="text-white font-bold"><i class="fa-solid fa-folder-open mr-2 text-emerald-400"></i>保存済みスタメンの読込</h4>
-                   <button @click="showLoadLineupModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                   <button type="button" @click="showLoadLineupModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
                  </div>
                  <div class="overflow-y-auto custom-scrollbar p-2 flex-1">
                    <div v-if="!settings.savedLineups || settings.savedLineups.length === 0" class="text-center py-6 text-slate-500 text-sm">
@@ -828,7 +888,7 @@
                        <div class="text-emerald-400 font-bold text-sm mb-0.5">{{ lu.name }}</div>
                        <div class="text-xs text-slate-300">システム: {{ lu.formation }}</div>
                      </div>
-                     <button @click="deleteSavedLineup(lu.id)" class="text-slate-500 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition" title="削除"><i class="fa-solid fa-trash"></i></button>
+                     <button type="button" @click="deleteSavedLineup(lu.id)" class="text-slate-500 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition" title="削除"><i class="fa-solid fa-trash"></i></button>
                    </div>
                  </div>
                </div>
@@ -914,7 +974,6 @@
             <h2 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2"><i class="fa-solid fa-sliders mr-2 text-slate-400"></i>アプリ設定</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <!-- 変更点：時間パターン設定 -->
               <div>
                 <h3 class="text-emerald-400 font-bold mb-4 text-sm">練習時間のパターン設定</h3>
                 <div class="space-y-3">
@@ -1022,7 +1081,7 @@
 
     createApp({
       setup() {
-        const version = "1.9.6";
+        const version = "1.9.7";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -1064,6 +1123,65 @@
 
         const showStudentDetailModal = ref(false);
         const selectedStudentForDetail = ref(null);
+
+        // --- ワンタップ記録ツール用の状態 ---
+        const quickRecordState = reactive({ player: null });
+        const matchTimer = reactive({ isRunning: false, seconds: 0, period: '前半', intervalId: null });
+
+        const toggleMatchTimer = () => {
+          if (matchTimer.isRunning) {
+            clearInterval(matchTimer.intervalId);
+            matchTimer.isRunning = false;
+          } else {
+            matchTimer.isRunning = true;
+            matchTimer.intervalId = setInterval(() => { matchTimer.seconds++; }, 1000);
+          }
+        };
+
+        const resetTimer = () => {
+          if(confirm("タイマーをリセットしますか？")) {
+            clearInterval(matchTimer.intervalId);
+            matchTimer.isRunning = false;
+            matchTimer.seconds = 0;
+          }
+        };
+
+        const formatTimer = (secs) => {
+          const m = Math.floor(secs / 60).toString().padStart(2, '0');
+          const s = (secs % 60).toString().padStart(2, '0');
+          return `${m}:${s}`;
+        };
+
+        const getTimerMinuteStr = () => {
+          const m = Math.floor(matchTimer.seconds / 60);
+          return `${matchTimer.period}${m}分`;
+        };
+
+        const setQuickRecordPlayer = (playerId) => { 
+          quickRecordState.player = quickRecordState.player === playerId ? null : playerId; 
+        };
+
+        const addQuickRecordAction = (action) => {
+          if (!quickRecordState.player) { alert("先に「1.選手を選択」から選手を選んでください"); return; }
+          
+          if (action === '得点') {
+              if (quickRecordState.player === 'opponent') matchForm.scoreThem++;
+              else matchForm.scoreUs++;
+          }
+          
+          const timeStr = matchTimer.seconds > 0 ? `${getTimerMinuteStr()} ` : '';
+          const playerName = quickRecordState.player === 'opponent' ? '相手チーム' : getStudentName(quickRecordState.player);
+          const record = `${timeStr}${playerName} (${action})`;
+          
+          matchForm.scorers = matchForm.scorers ? matchForm.scorers + '\n' + record : record;
+          quickRecordState.player = null; 
+        };
+
+        const resetQuickRecord = () => {
+          clearInterval(matchTimer.intervalId);
+          Object.assign(matchTimer, { isRunning: false, seconds: 0, period: '前半', intervalId: null });
+          quickRecordState.player = null;
+        };
 
         const customFirebaseEnabled = ref(false);
         const firebaseConfigInput = ref('');
@@ -1400,11 +1518,16 @@
         };
         const deletePractice = async (id) => { if(confirm("削除しますか？")) { practices.value = practices.value.filter(p => p.id !== id); isEditingPractice.value = false; await deleteFromCloud('practices', id); } };
 
-        const openMatchForm = () => { Object.assign(matchForm, getEmptyMatchForm()); isEditingMatch.value = true; };
+        const openMatchForm = () => { 
+          Object.assign(matchForm, getEmptyMatchForm()); 
+          resetQuickRecord();
+          isEditingMatch.value = true; 
+        };
         const editMatch = (m) => {
           Object.assign(matchForm, JSON.parse(JSON.stringify(m)));
           if(!matchForm.opponentPlayers) matchForm.opponentPlayers = []; if(!matchForm.studentComments) matchForm.studentComments = {}; if(!matchForm.lineup) matchForm.lineup = {};
           if(!matchForm.formation) matchForm.formation = '4-2-3-1'; if(!matchForm.opponentFormation) matchForm.opponentFormation = '4-4-2'; if(!matchForm.opponentLineup) matchForm.opponentLineup = {};
+          resetQuickRecord();
           isEditingMatch.value = true;
         };
         const handleFormationChange = () => {};
@@ -1538,6 +1661,7 @@
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, 
           addTimePattern, removeTimePattern, addPracticeMenu, removePracticeMenu, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
           matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
+          quickRecordState, matchTimer, toggleMatchTimer, resetTimer, formatTimer, setQuickRecordPlayer, addQuickRecordAction, resetQuickRecord,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
           settings, newMenuName, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON
         };
