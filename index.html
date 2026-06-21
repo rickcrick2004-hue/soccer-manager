@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.9.5</title>
+  <title>Soccer Team Manager v1.9.6</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -396,7 +396,17 @@
                 </select>
               </div>
               <div>
-                <label class="form-label">時間</label>
+                <div class="flex justify-between items-end mb-2">
+                  <label class="block text-sm font-bold text-slate-300">時間</label>
+                </div>
+                <!-- 追加：時間パターンのワンタップ入力 -->
+                <div class="flex flex-wrap gap-1 mb-2">
+                   <button v-for="(pat, idx) in settings.timePatterns" :key="idx" type="button" 
+                           @click="practiceForm.startTime = pat.start; practiceForm.endTime = pat.end" 
+                           class="text-[10px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded transition">
+                     {{ pat.name }}
+                   </button>
+                </div>
                 <div class="flex items-center gap-2">
                   <input type="time" v-model="practiceForm.startTime" class="form-input px-2 text-sm text-center">
                   <span class="text-slate-500">-</span>
@@ -448,7 +458,7 @@
               </div>
             </div>
 
-            <!-- 出欠状況のテーブル変更点（理由をすぐ横に） -->
+            <!-- 出欠状況のテーブル -->
             <div class="mb-8 border-t border-slate-700 pt-6">
               <label class="block text-sm font-bold text-emerald-400 mb-4"><i class="fa-solid fa-clipboard-user mr-2"></i>出欠状況 ＆ 理由</label>
               <div class="bg-slate-900/50 rounded-xl p-4 overflow-x-auto">
@@ -904,18 +914,18 @@
             <h2 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2"><i class="fa-solid fa-sliders mr-2 text-slate-400"></i>アプリ設定</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <!-- 変更点：時間パターン設定 -->
               <div>
-                <h3 class="text-emerald-400 font-bold mb-4 text-sm">練習時間のデフォルト設定</h3>
-                <div class="flex gap-4 items-center">
-                  <div class="flex-1">
-                    <label class="text-xs text-slate-400 block mb-1">開始</label>
-                    <input type="time" v-model="settings.defaultStartTime" class="form-input" @change="saveSettings">
+                <h3 class="text-emerald-400 font-bold mb-4 text-sm">練習時間のパターン設定</h3>
+                <div class="space-y-3">
+                  <div v-for="(pat, index) in settings.timePatterns" :key="index" class="flex gap-2 items-center bg-slate-800 p-2 rounded">
+                    <input type="text" v-model="pat.name" class="form-input py-1 px-2 text-sm w-24" placeholder="名前" @change="saveSettings">
+                    <input type="time" v-model="pat.start" class="form-input py-1 px-2 text-sm flex-1" @change="saveSettings">
+                    <span class="text-slate-500">〜</span>
+                    <input type="time" v-model="pat.end" class="form-input py-1 px-2 text-sm flex-1" @change="saveSettings">
+                    <button @click="removeTimePattern(index)" class="text-slate-500 hover:text-red-400 p-1"><i class="fa-solid fa-trash-can"></i></button>
                   </div>
-                  <span class="text-slate-500 font-bold mt-4">〜</span>
-                  <div class="flex-1">
-                    <label class="text-xs text-slate-400 block mb-1">終了</label>
-                    <input type="time" v-model="settings.defaultEndTime" class="form-input" @change="saveSettings">
-                  </div>
+                  <button @click="addTimePattern" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded transition"><i class="fa-solid fa-plus mr-1"></i>パターンを追加</button>
                 </div>
               </div>
 
@@ -1012,7 +1022,7 @@
 
     createApp({
       setup() {
-        const version = "1.9.5";
+        const version = "1.9.6";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -1025,8 +1035,11 @@
         const matches = ref([]);
         const memos = ref([]);
         const settings = reactive({
-          defaultStartTime: '16:00',
-          defaultEndTime: '18:30',
+          timePatterns: [
+            { name: '平日', start: '16:00', end: '18:30' },
+            { name: '休日(午前)', start: '09:00', end: '12:00' },
+            { name: '休日(午後)', start: '13:00', end: '16:00' }
+          ],
           practiceMenus: ['アップ', 'パスコン', 'シュート', 'ミニゲーム'],
           savedLineups: [] 
         });
@@ -1076,17 +1089,23 @@
            return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
         };
 
-        const getEmptyPracticeForm = () => ({ 
-          id: null, 
-          date: new Date().toISOString().split('T')[0], 
-          startTime: settings.defaultStartTime, 
-          endTime: settings.defaultEndTime, 
-          menus: [], 
-          weather: '晴れ', 
-          isHoliday: false, 
-          attendance: {}, 
-          overallComment: '' 
-        });
+        const getEmptyPracticeForm = () => {
+          const defaultPat = (settings.timePatterns && settings.timePatterns.length > 0) 
+            ? settings.timePatterns[0] 
+            : {start: '16:00', end: '18:30'};
+            
+          return { 
+            id: null, 
+            date: new Date().toISOString().split('T')[0], 
+            startTime: defaultPat.start, 
+            endTime: defaultPat.end, 
+            menus: [], 
+            weather: '晴れ', 
+            isHoliday: false, 
+            attendance: {}, 
+            overallComment: '' 
+          };
+        };
         const practiceForm = reactive(getEmptyPracticeForm());
 
         const getEmptyMatchForm = () => ({ id: null, matchType: '練習試合', tournamentName: '', date: new Date().toISOString().split('T')[0], time: '10:00', opponent: '', location: '', weather: '晴れ', referee: '', scoreUs: 0, scoreThem: 0, scorers: '', formation: '4-2-3-1', customFormation: '', lineup: {}, opponentFormation: '4-4-2', customOpponentFormation: '', opponentLineup: {}, opponentPlayers: [], studentComments: {}, overallComment: '' });
@@ -1195,6 +1214,13 @@
                if(settingsDoc) {
                  const savedSettings = settingsDoc.data();
                  if(!savedSettings.savedLineups) savedSettings.savedLineups = [];
+                 if(!savedSettings.timePatterns) {
+                   savedSettings.timePatterns = [
+                     { name: '平日', start: '16:00', end: '18:30' },
+                     { name: '休日(午前)', start: '09:00', end: '12:00' },
+                     { name: '休日(午後)', start: '13:00', end: '16:00' }
+                   ];
+                 }
                  Object.assign(settings, savedSettings);
                }
             }
@@ -1324,7 +1350,6 @@
           isEditingPracticeMenus.value = false; isEditingPractice.value = true;
         };
 
-        // --- 追加：ダッシュボードからのジャンプ用メソッド ---
         const editPracticeFromDashboard = (p) => {
           currentView.value = 'practice';
           editPractice(p);
@@ -1334,7 +1359,6 @@
           currentView.value = 'match';
           editMatch(m);
         };
-        // ------------------------------------------------
 
         const setAttendance = (studentId, status) => { 
           if(practiceForm.attendance[studentId]) {
@@ -1355,10 +1379,18 @@
           }).length; 
         };
         
-        const addMenuToPractice = (menu) => { practiceForm.menus.push(menu); };
-        const removeMenuFromPractice = (index) => { practiceForm.menus.splice(index, 1); };
+        const saveSettings = async () => { await saveToCloud('settings', 'app_settings', Object.assign({}, settings)); };
+
+        const addTimePattern = () => { settings.timePatterns.push({ name: '新規', start: '16:00', end: '18:00' }); saveSettings(); };
+        const removeTimePattern = (index) => { settings.timePatterns.splice(index, 1); saveSettings(); };
+        const addPracticeMenu = () => { const val = newMenuName.value.trim(); if(val && !settings.practiceMenus.includes(val)) { settings.practiceMenus.push(val); newMenuName.value = ''; saveSettings(); } };
+        const removePracticeMenu = (index) => { settings.practiceMenus.splice(index, 1); saveSettings(); };
         const addSettingMenuInline = () => { const val = newPracticeMenuInput.value.trim(); if(val && !settings.practiceMenus.includes(val)) { settings.practiceMenus.push(val); newPracticeMenuInput.value = ''; saveSettings(); } };
         const deleteSettingMenu = (index) => { if(confirm("削除しますか？")) { settings.practiceMenus.splice(index, 1); saveSettings(); } };
+
+        const addMenuToPractice = (menu) => { practiceForm.menus.push(menu); };
+        const removeMenuFromPractice = (index) => { practiceForm.menus.splice(index, 1); };
+
         const savePractice = async () => {
           if (!practiceForm.date) { alert("日付を入力してください"); return; }
           const isNew = !practiceForm.id; if (isNew) practiceForm.id = crypto.randomUUID();
@@ -1457,10 +1489,7 @@
           } catch(e) { alert("設定を読み取れませんでした。"); }
         };
         const clearFirebaseConfig = () => { if(confirm("Firebase設定をクリアし、標準環境に戻しますか？")) { localStorage.removeItem('soccer_mgr_firebase_config'); firebaseConfigInput.value = ''; window.location.reload(); } };
-        const saveSettings = async () => { await saveToCloud('settings', 'app_settings', Object.assign({}, settings)); };
-        const addPracticeMenu = () => { const val = newMenuName.value.trim(); if(val && !settings.practiceMenus.includes(val)) { settings.practiceMenus.push(val); newMenuName.value = ''; saveSettings(); } };
-        const removePracticeMenu = (index) => { settings.practiceMenus.splice(index, 1); saveSettings(); };
-
+        
         const exportJSON = () => {
           const data = { version, exportDate: new Date().toISOString(), students: students.value, practices: practices.value, matches: matches.value, memos: memos.value, settings };
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1475,7 +1504,17 @@
             try {
               const data = JSON.parse(event.target.result);
               if(data.students) students.value = data.students; if(data.practices) practices.value = data.practices; if(data.matches) matches.value = data.matches; if(data.memos) memos.value = data.memos;
-              if(data.settings) { if(!data.settings.savedLineups) data.settings.savedLineups = []; Object.assign(settings, data.settings); }
+              if(data.settings) { 
+                 if(!data.settings.savedLineups) data.settings.savedLineups = []; 
+                 if(!data.settings.timePatterns) {
+                   data.settings.timePatterns = [
+                     { name: '平日', start: '16:00', end: '18:30' },
+                     { name: '休日(午前)', start: '09:00', end: '12:00' },
+                     { name: '休日(午後)', start: '13:00', end: '16:00' }
+                   ];
+                 }
+                 Object.assign(settings, data.settings); 
+              }
               if (user.value && db) {
                 const batch = writeBatch(db);
                 if(data.students) data.students.forEach(s => batch.set(getPublicDoc('students', s.id), s));
@@ -1496,10 +1535,11 @@
           downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
           showStudentDetailModal, selectedStudentForDetail, selectedStudentAttendanceHistory, openStudentDetail,
           getWeekday, autoSetHoliday, formatDate,
-          practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
+          practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, 
+          addTimePattern, removeTimePattern, addPracticeMenu, removePracticeMenu, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
           matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
-          settings, newMenuName, addPracticeMenu, removePracticeMenu, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON
+          settings, newMenuName, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON
         };
       }
     }).mount('#app');
