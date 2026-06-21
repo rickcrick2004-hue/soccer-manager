@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.9.8</title>
+  <title>Soccer Team Manager v1.9.9</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -615,10 +615,20 @@
                             :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === sId ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700']">
                       {{ getStudentShortName(sId) }}
                     </button>
+                    
+                    <div class="w-full border-t border-slate-700 my-1"></div>
+                    
                     <button type="button" @click="setQuickRecordPlayer('opponent')"
-                            :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === 'opponent' ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700']">
-                      相手チーム
+                            :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === 'opponent' ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800 text-red-300 border-slate-700 hover:bg-slate-700']">
+                      相手全体
                     </button>
+                    <!-- 追加：相手の個別選手ボタン -->
+                    <button type="button" v-for="opp in availableOpponentPlayersForQuickRecord" :key="opp.id"
+                            @click="setQuickRecordPlayer(opp.id)"
+                            :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === opp.id ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800 text-red-300 border-slate-700 hover:bg-slate-700']">
+                      相手{{ opp.number ? '#'+opp.number : '' }} {{ opp.name }}
+                    </button>
+
                     <div v-if="Object.keys(matchForm.studentComments).length === 0" class="text-xs text-slate-500 w-full py-2 border-t border-slate-700 mt-2">
                       ※下部の「出場選手」にメンバーを追加すると、ここにボタンが表示されます。
                     </div>
@@ -739,7 +749,7 @@
                 <h3 class="text-amber-400 font-bold mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-crosshairs mr-2"></i>相手チーム情報</h3>
                 <div class="mb-6 flex gap-4 items-center">
                   <label class="form-label mb-0">システム</label>
-                  <select v-model="matchForm.opponentFormation" class="form-input w-48">
+                  <select v-model="matchForm.opponentFormation" class="form-input w-48" @change="handleOpponentFormationChange">
                     <option value="4-4-2">4-4-2</option>
                     <option value="4-2-3-1">4-2-3-1</option>
                     <option value="4-3-3">4-3-3</option>
@@ -995,7 +1005,6 @@
             <h2 class="text-xl font-bold text-white mb-6 border-b border-slate-700 pb-2"><i class="fa-solid fa-sliders mr-2 text-slate-400"></i>アプリ設定</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <!-- 変更点：時間パターン設定 -->
               <div>
                 <h3 class="text-emerald-400 font-bold mb-4 text-sm">練習時間のパターン設定</h3>
                 <div class="space-y-3">
@@ -1103,7 +1112,7 @@
 
     createApp({
       setup() {
-        const version = "1.9.8";
+        const version = "1.9.9";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -1198,12 +1207,32 @@
           return activeStudents.value.filter(s => !lineupIds.includes(s.id));
         });
 
+        // --- ワンタップ記録の相手選手リスト ---
+        const availableOpponentPlayersForQuickRecord = computed(() => {
+          const players = [];
+          // スタメンから追加
+          for (const posId in matchForm.opponentLineup) {
+            const p = matchForm.opponentLineup[posId];
+            if (p && (p.number || p.name)) {
+              players.push({ id: `opp_lineup_${posId}`, number: p.number, name: p.name });
+            }
+          }
+          // 控えから追加
+          matchForm.opponentPlayers.forEach((p, index) => {
+            if (p && (p.number || p.name)) {
+              players.push({ id: `opp_sub_${index}`, number: p.number, name: p.name });
+            }
+          });
+          return players;
+        });
+
         const isSelectingSubForQuickRecord = ref(false);
         const subbingOutPlayerId = ref(null);
 
         const openSubSelection = () => {
           if (!quickRecordState.player) { alert("先に「1.選手を選択」から退く選手(OUT)を選んでください"); return; }
-          if (quickRecordState.player === 'opponent') { alert("相手チームの交代は下の自由記述欄に直接入力してください"); return; }
+          const playerIdStr = String(quickRecordState.player);
+          if (playerIdStr === 'opponent' || playerIdStr.startsWith('opp_')) { alert("相手チームの交代は下の自由記述欄に直接入力してください"); return; }
           subbingOutPlayerId.value = quickRecordState.player;
           isSelectingSubForQuickRecord.value = true;
         };
@@ -1242,13 +1271,30 @@
         const addQuickRecordAction = (action) => {
           if (!quickRecordState.player) { alert("先に「1.選手を選択」から選手を選んでください"); return; }
           
+          const playerIdStr = String(quickRecordState.player);
           if (action === '得点') {
-              if (quickRecordState.player === 'opponent') matchForm.scoreThem++;
+              if (playerIdStr === 'opponent' || playerIdStr.startsWith('opp_')) matchForm.scoreThem++;
               else matchForm.scoreUs++;
           }
           
           const timeStr = matchTimer.seconds > 0 ? `${getTimerMinuteStr()} ` : '';
-          const playerName = quickRecordState.player === 'opponent' ? '相手チーム' : getStudentName(quickRecordState.player);
+          let playerName = '';
+          if (playerIdStr === 'opponent') {
+              playerName = '相手チーム';
+          } else if (playerIdStr.startsWith('opp_')) {
+              // 個別の相手選手名を取得
+              const oppId = playerIdStr;
+              let oppPlayer = null;
+              if (oppId.startsWith('opp_lineup_')) {
+                  oppPlayer = matchForm.opponentLineup[oppId.replace('opp_lineup_', '')];
+              } else if (oppId.startsWith('opp_sub_')) {
+                  oppPlayer = matchForm.opponentPlayers[parseInt(oppId.replace('opp_sub_', ''))];
+              }
+              playerName = oppPlayer ? `相手${oppPlayer.number ? '#'+oppPlayer.number : ''} ${oppPlayer.name || ''}`.trim() : '相手選手';
+          } else {
+              playerName = getStudentName(quickRecordState.player);
+          }
+          
           const record = `${timeStr}${playerName} (${action})`;
           
           matchForm.scorers = matchForm.scorers ? matchForm.scorers + '\n' + record : record;
@@ -1599,7 +1645,64 @@
           resetQuickRecord();
           isEditingMatch.value = true;
         };
-        const handleFormationChange = () => {};
+
+        const handleFormationChange = () => {
+          if (matchForm.formation === 'フリー' || !formations[matchForm.formation]) return;
+          const newPositions = formations[matchForm.formation].map(p => p.id);
+          const currentLineup = { ...matchForm.lineup };
+          matchForm.lineup = {};
+          const unassignedStudents = [];
+          
+          for (const posId in currentLineup) {
+            if (newPositions.includes(posId)) {
+              matchForm.lineup[posId] = currentLineup[posId];
+              if (matchForm.studentComments[currentLineup[posId]]) {
+                 matchForm.studentComments[currentLineup[posId]].position = formations[matchForm.formation].find(p => p.id === posId).name;
+              }
+            } else {
+              unassignedStudents.push(currentLineup[posId]);
+            }
+          }
+          
+          for (const posId of newPositions) {
+            if (!matchForm.lineup[posId] && unassignedStudents.length > 0) {
+              const studentId = unassignedStudents.shift();
+              matchForm.lineup[posId] = studentId;
+              if (matchForm.studentComments[studentId]) {
+                 matchForm.studentComments[studentId].position = formations[matchForm.formation].find(p => p.id === posId).name;
+              }
+            }
+          }
+          
+          unassignedStudents.forEach(studentId => {
+            if (matchForm.studentComments[studentId]) {
+               matchForm.studentComments[studentId].position = '';
+            }
+          });
+        };
+
+        const handleOpponentFormationChange = () => {
+          if (matchForm.opponentFormation === 'フリー' || !formations[matchForm.opponentFormation]) return;
+          const newPositions = formations[matchForm.opponentFormation].map(p => p.id);
+          const currentLineup = { ...matchForm.opponentLineup };
+          matchForm.opponentLineup = {};
+          const unassignedPlayers = [];
+          
+          for (const posId in currentLineup) {
+            if (newPositions.includes(posId)) {
+              matchForm.opponentLineup[posId] = currentLineup[posId];
+            } else {
+              unassignedPlayers.push(currentLineup[posId]);
+            }
+          }
+          
+          for (const posId of newPositions) {
+            if (!matchForm.opponentLineup[posId] && unassignedPlayers.length > 0) {
+              matchForm.opponentLineup[posId] = unassignedPlayers.shift();
+            }
+          }
+        };
+
         const getPositionName = (posId) => { const p = currentFormationPositions.value.find(pos => pos.id === posId) || currentOpponentFormationPositions.value.find(pos => pos.id === posId); return p ? p.name : ''; };
         const openPlayerSelect = (posId) => { selectingPositionId.value = posId; isSelectingPlayer.value = true; };
         const selectPlayerForPosition = (studentId) => {
@@ -1729,11 +1832,11 @@
           getWeekday, autoSetHoliday, formatDate,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, 
           addTimePattern, removeTimePattern, addPracticeMenu, removePracticeMenu, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
-          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
+          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, handleOpponentFormationChange, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
           quickRecordState, matchTimer, toggleMatchTimer, resetTimer, formatTimer, setQuickRecordPlayer, addQuickRecordAction, resetQuickRecord,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
           settings, newMenuName, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON,
-          availableStudentsForLineup, isSelectingSubForQuickRecord, subbingOutPlayerId, openSubSelection, confirmSubstitution
+          availableStudentsForLineup, availableOpponentPlayersForQuickRecord, isSelectingSubForQuickRecord, subbingOutPlayerId, openSubSelection, confirmSubstitution
         };
       }
     }).mount('#app');
