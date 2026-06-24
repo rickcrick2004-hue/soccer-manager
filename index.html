@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Soccer Team Manager v1.9.9</title>
+  
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -38,6 +39,7 @@
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
   </style>
 </head>
+
 <body class="bg-slate-900 text-slate-200 h-screen overflow-hidden selection:bg-emerald-500 selection:text-white">
   
   <div id="app" class="flex h-full w-full" v-cloak>
@@ -58,6 +60,7 @@
             <i class="fa-solid fa-users w-6 text-center"></i>
             <span class="hidden md:block ml-3 font-medium">名簿・生徒管理</span>
           </button>
+          
           <button @click="currentView = 'practice'" :class="['nav-btn', currentView === 'practice' ? 'active' : '']">
             <i class="fa-solid fa-stopwatch w-6 text-center"></i>
             <span class="hidden md:block ml-3 font-medium">練習記録</span>
@@ -76,6 +79,7 @@
           </button>
         </nav>
       </div>
+      
       <div class="p-4 text-center border-t border-slate-700/50">
         <div class="text-xs text-slate-500 font-mono">v{{ version }}</div>
         <div v-if="loadingAuth" class="text-xs text-emerald-400 mt-1 animate-pulse">接続中...</div>
@@ -324,7 +328,6 @@
               </div>
             </div>
           </div>
-
         </div>
 
         <!-- PRACTICE VIEW -->
@@ -502,11 +505,11 @@
             </div>
 
             <div class="flex justify-between items-center border-t border-slate-700 pt-6">
-              <button v-if="practiceForm.id" @click="deletePractice(practiceForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
+              <button type="button" v-if="practiceForm.id" @click="deletePractice(practiceForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
               <div v-else></div>
               <div class="flex space-x-3">
-                <button @click="isEditingPractice = false" class="btn-secondary">キャンセル</button>
-                <button @click="savePractice" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
+                <button type="button" @click="isEditingPractice = false" class="btn-secondary">キャンセル</button>
+                <button type="button" @click="savePractice" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
               </div>
             </div>
           </div>
@@ -615,20 +618,10 @@
                             :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === sId ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700']">
                       {{ getStudentShortName(sId) }}
                     </button>
-                    
-                    <div class="w-full border-t border-slate-700 my-1"></div>
-                    
                     <button type="button" @click="setQuickRecordPlayer('opponent')"
-                            :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === 'opponent' ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800 text-red-300 border-slate-700 hover:bg-slate-700']">
-                      相手全体
+                            :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === 'opponent' ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700']">
+                      相手チーム
                     </button>
-                    <!-- 追加：相手の個別選手ボタン -->
-                    <button type="button" v-for="opp in availableOpponentPlayersForQuickRecord" :key="opp.id"
-                            @click="setQuickRecordPlayer(opp.id)"
-                            :class="['px-3 py-2 rounded text-sm font-medium transition border', quickRecordState.player === opp.id ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/20' : 'bg-slate-800 text-red-300 border-slate-700 hover:bg-slate-700']">
-                      相手{{ opp.number ? '#'+opp.number : '' }} {{ opp.name }}
-                    </button>
-
                     <div v-if="Object.keys(matchForm.studentComments).length === 0" class="text-xs text-slate-500 w-full py-2 border-t border-slate-700 mt-2">
                       ※下部の「出場選手」にメンバーを追加すると、ここにボタンが表示されます。
                     </div>
@@ -688,6 +681,7 @@
                     <option value="3-5-2">3-5-2</option>
                     <option value="3-4-3">3-4-3</option>
                     <option value="5-1-3-1">5-1-3-1</option>
+                    <option value="5-2-3">5-2-3</option>
                     <option value="フリー">フリー (手動入力)</option>
                   </select>
                 </div>
@@ -749,13 +743,14 @@
                 <h3 class="text-amber-400 font-bold mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-crosshairs mr-2"></i>相手チーム情報</h3>
                 <div class="mb-6 flex gap-4 items-center">
                   <label class="form-label mb-0">システム</label>
-                  <select v-model="matchForm.opponentFormation" class="form-input w-48" @change="handleOpponentFormationChange">
+                  <select v-model="matchForm.opponentFormation" class="form-input w-48">
                     <option value="4-4-2">4-4-2</option>
                     <option value="4-2-3-1">4-2-3-1</option>
                     <option value="4-3-3">4-3-3</option>
                     <option value="3-5-2">3-5-2</option>
                     <option value="3-4-3">3-4-3</option>
                     <option value="5-1-3-1">5-1-3-1</option>
+                    <option value="5-2-3">5-2-3</option>
                     <option value="フリー">フリー (手動入力)</option>
                   </select>
                 </div>
@@ -842,6 +837,7 @@
                    <button type="button" @click="selectPlayerForPosition(null)" class="w-full text-left px-4 py-3 text-red-400 hover:bg-slate-700 rounded transition border-b border-slate-700/50 mb-1 flex items-center">
                      <i class="fa-solid fa-eraser mr-2"></i>配置を解除する
                    </button>
+                   <div v-if="availableStudentsForLineup.length === 0" class="text-center text-slate-500 py-4 text-sm">全選手が配置済みです</div>
                    <button type="button" v-for="s in availableStudentsForLineup" :key="s.id" @click="selectPlayerForPosition(s.id)" class="w-full text-left px-4 py-2.5 text-slate-200 hover:bg-slate-700 rounded transition flex items-center justify-between">
                      <span><span class="text-emerald-400 font-mono w-6 inline-block">{{ s.number || '-' }}</span> {{ s.name }}</span>
                      <span class="text-xs text-slate-500">{{ s.position }}</span>
@@ -929,7 +925,7 @@
         </div>
 
         <!-- MEMO VIEW -->
-        <div v-if="currentView === 'memo'" class="space-y-6 fade-in">
+        <div v-if="currentView === 'memo'" class="space-y-6 fade-in h-full flex flex-col">
           <!-- List Mode -->
           <div v-if="!isEditingMemo">
             <div class="flex justify-between items-center mb-6">
@@ -946,23 +942,26 @@
             </div>
           </div>
 
-          <!-- Form Mode -->
-          <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative">
-            <button @click="isEditingMemo = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
-            <h2 class="text-2xl font-bold text-white mb-6">{{ memoForm.id ? 'メモの編集' : '新規メモ' }}</h2>
+          <!-- Form Mode (Expanded for Presentation) -->
+          <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative flex flex-col min-h-[80vh]">
+            <button @click="isEditingMemo = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-bold text-white mb-6 shrink-0">{{ memoForm.id ? 'メモの編集' : '新規メモ' }}</h2>
             
-            <div class="space-y-6">
-              <div>
+            <div class="flex flex-col gap-6 flex-1">
+              <div class="shrink-0">
                 <label class="form-label">タイトル</label>
                 <input type="text" v-model="memoForm.title" class="form-input text-lg font-bold" placeholder="メモのタイトル">
               </div>
-              <div>
-                <label class="form-label">内容</label>
-                <textarea v-model="memoForm.content" rows="10" class="form-input resize-y" placeholder="メモの内容を入力..."></textarea>
+              <div class="flex flex-col flex-1">
+                <label class="form-label flex justify-between">
+                  <span>内容</span>
+                  <span class="text-xs text-slate-500 font-normal"><i class="fa-solid fa-expand mr-1"></i>全画面表示モード</span>
+                </label>
+                <textarea v-model="memoForm.content" class="form-input resize-none flex-1 text-lg leading-relaxed" placeholder="メモの内容を入力... 生徒に話す内容をまとめましょう。"></textarea>
               </div>
             </div>
 
-            <div class="flex justify-between items-center border-t border-slate-700 pt-6 mt-8">
+            <div class="flex justify-between items-center border-t border-slate-700 pt-6 mt-6 shrink-0">
               <button v-if="memoForm.id" @click="deleteMemo(memoForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
               <div v-else></div>
               <div class="flex space-x-3">
@@ -1056,6 +1055,17 @@
 
       </div>
     </main>
+    
+    <!-- Dialog UI (Alert & Confirm Replacement) -->
+    <div v-if="dialogState.show" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in">
+      <div class="bg-slate-800 border border-slate-600 rounded-xl p-6 shadow-2xl max-w-sm w-full text-center">
+        <p class="text-white mb-6 whitespace-pre-wrap leading-relaxed">{{ dialogState.message }}</p>
+        <div class="flex justify-center gap-4">
+          <button v-if="dialogState.type === 'confirm'" @click="handleDialogCancel" class="btn-secondary px-6">キャンセル</button>
+          <button @click="handleDialogOk" class="btn-primary px-8">OK</button>
+        </div>
+      </div>
+    </div>
 
   </div>
 
@@ -1107,6 +1117,12 @@
          { id: 'mf4', name: 'DMF', top: '50%', left: '50%' },
          { id: 'df1', name: 'LWB', top: '70%', left: '15%' }, { id: 'df2', name: 'CB', top: '75%', left: '35%' }, { id: 'df3', name: 'CB', top: '75%', left: '50%' }, { id: 'df4', name: 'CB', top: '75%', left: '65%' }, { id: 'df5', name: 'RWB', top: '70%', left: '85%' },
          { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
+      '5-2-3': [
+         { id: 'fw1', name: 'WG', top: '15%', left: '20%' }, { id: 'fw2', name: 'CF', top: '15%', left: '50%' }, { id: 'fw3', name: 'WG', top: '15%', left: '80%' },
+         { id: 'mf1', name: 'DMF', top: '45%', left: '35%' }, { id: 'mf2', name: 'DMF', top: '45%', left: '65%' },
+         { id: 'df1', name: 'LWB', top: '70%', left: '15%' }, { id: 'df2', name: 'CB', top: '75%', left: '35%' }, { id: 'df3', name: 'CB', top: '75%', left: '50%' }, { id: 'df4', name: 'CB', top: '75%', left: '65%' }, { id: 'df5', name: 'RWB', top: '70%', left: '85%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
       ]
     };
 
@@ -1120,6 +1136,7 @@
         let db = null;
         let appId = typeof __app_id !== 'undefined' ? __app_id : 'soccer-manager-final'; 
 
+        // --- STREAMING_CHUNK:Setting up core states... ---
         const students = ref([]);
         const practices = ref([]);
         const matches = ref([]);
@@ -1155,6 +1172,44 @@
         const showStudentDetailModal = ref(false);
         const selectedStudentForDetail = ref(null);
 
+        // --- STREAMING_CHUNK:Configuring Custom Dialog logic... ---
+        const dialogState = reactive({
+          show: false,
+          message: '',
+          type: 'alert', // 'alert' or 'confirm'
+          resolve: null
+        });
+
+        const customAlert = (msg) => {
+          dialogState.message = msg;
+          dialogState.type = 'alert';
+          dialogState.show = true;
+        };
+
+        const customConfirm = (msg) => {
+          return new Promise((resolve) => {
+            dialogState.message = msg;
+            dialogState.type = 'confirm';
+            dialogState.resolve = resolve;
+            dialogState.show = true;
+          });
+        };
+
+        const handleDialogOk = () => {
+          if (dialogState.type === 'confirm' && dialogState.resolve) {
+            dialogState.resolve(true);
+          }
+          dialogState.show = false;
+        };
+
+        const handleDialogCancel = () => {
+          if (dialogState.type === 'confirm' && dialogState.resolve) {
+            dialogState.resolve(false);
+          }
+          dialogState.show = false;
+        };
+
+        // --- STREAMING_CHUNK:Setting up Match Timer logic... ---
         // --- ワンタップ記録ツール用の状態 ---
         const quickRecordState = reactive({ player: null });
         const matchTimer = reactive({ isRunning: false, seconds: 0, period: '前半', intervalId: null });
@@ -1169,8 +1224,8 @@
           }
         };
 
-        const resetTimer = () => {
-          if(confirm("タイマーをリセットしますか？")) {
+        const resetTimer = async () => {
+          if(await customConfirm("タイマーをリセットしますか？")) {
             clearInterval(matchTimer.intervalId);
             matchTimer.isRunning = false;
             matchTimer.seconds = 0;
@@ -1198,6 +1253,7 @@
           quickRecordState.player = null;
         };
 
+        // --- STREAMING_CHUNK:Setting up Substitution logic... ---
         // --- 交代機能用の状態と関数 ---
         const activeStudents = computed(() => students.value.filter(s => !s.isGraduated).sort((a,b) => a.grade - b.grade));
         const obStudents = computed(() => students.value.filter(s => s.isGraduated).sort((a,b) => b.grade - a.grade));
@@ -1207,32 +1263,12 @@
           return activeStudents.value.filter(s => !lineupIds.includes(s.id));
         });
 
-        // --- ワンタップ記録の相手選手リスト ---
-        const availableOpponentPlayersForQuickRecord = computed(() => {
-          const players = [];
-          // スタメンから追加
-          for (const posId in matchForm.opponentLineup) {
-            const p = matchForm.opponentLineup[posId];
-            if (p && (p.number || p.name)) {
-              players.push({ id: `opp_lineup_${posId}`, number: p.number, name: p.name });
-            }
-          }
-          // 控えから追加
-          matchForm.opponentPlayers.forEach((p, index) => {
-            if (p && (p.number || p.name)) {
-              players.push({ id: `opp_sub_${index}`, number: p.number, name: p.name });
-            }
-          });
-          return players;
-        });
-
         const isSelectingSubForQuickRecord = ref(false);
         const subbingOutPlayerId = ref(null);
 
         const openSubSelection = () => {
-          if (!quickRecordState.player) { alert("先に「1.選手を選択」から退く選手(OUT)を選んでください"); return; }
-          const playerIdStr = String(quickRecordState.player);
-          if (playerIdStr === 'opponent' || playerIdStr.startsWith('opp_')) { alert("相手チームの交代は下の自由記述欄に直接入力してください"); return; }
+          if (!quickRecordState.player) { customAlert("先に「1.選手を選択」から退く選手(OUT)を選んでください"); return; }
+          if (quickRecordState.player === 'opponent') { customAlert("相手チームの交代は下の自由記述欄に直接入力してください"); return; }
           subbingOutPlayerId.value = quickRecordState.player;
           isSelectingSubForQuickRecord.value = true;
         };
@@ -1269,32 +1305,15 @@
         };
 
         const addQuickRecordAction = (action) => {
-          if (!quickRecordState.player) { alert("先に「1.選手を選択」から選手を選んでください"); return; }
+          if (!quickRecordState.player) { customAlert("先に「1.選手を選択」から選手を選んでください"); return; }
           
-          const playerIdStr = String(quickRecordState.player);
           if (action === '得点') {
-              if (playerIdStr === 'opponent' || playerIdStr.startsWith('opp_')) matchForm.scoreThem++;
+              if (quickRecordState.player === 'opponent') matchForm.scoreThem++;
               else matchForm.scoreUs++;
           }
           
           const timeStr = matchTimer.seconds > 0 ? `${getTimerMinuteStr()} ` : '';
-          let playerName = '';
-          if (playerIdStr === 'opponent') {
-              playerName = '相手チーム';
-          } else if (playerIdStr.startsWith('opp_')) {
-              // 個別の相手選手名を取得
-              const oppId = playerIdStr;
-              let oppPlayer = null;
-              if (oppId.startsWith('opp_lineup_')) {
-                  oppPlayer = matchForm.opponentLineup[oppId.replace('opp_lineup_', '')];
-              } else if (oppId.startsWith('opp_sub_')) {
-                  oppPlayer = matchForm.opponentPlayers[parseInt(oppId.replace('opp_sub_', ''))];
-              }
-              playerName = oppPlayer ? `相手${oppPlayer.number ? '#'+oppPlayer.number : ''} ${oppPlayer.name || ''}`.trim() : '相手選手';
-          } else {
-              playerName = getStudentName(quickRecordState.player);
-          }
-          
+          const playerName = quickRecordState.player === 'opponent' ? '相手チーム' : getStudentName(quickRecordState.player);
           const record = `${timeStr}${playerName} (${action})`;
           
           matchForm.scorers = matchForm.scorers ? matchForm.scorers + '\n' + record : record;
@@ -1325,6 +1344,7 @@
            return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
         };
 
+        // --- STREAMING_CHUNK:Setting up forms logic... ---
         const getEmptyPracticeForm = () => {
           const defaultPat = (settings.timePatterns && settings.timePatterns.length > 0) 
             ? settings.timePatterns[0] 
@@ -1393,6 +1413,7 @@
           return formations[matchForm.opponentFormation].map(pos => ({ ...pos, top: `calc(100% - ${pos.top})`, left: `calc(100% - ${pos.left})` }));
         });
 
+        // --- STREAMING_CHUNK:Setting up Firebase initialization... ---
         onMounted(() => {
           const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
           if (storedConfig) { firebaseConfigInput.value = storedConfig; }
@@ -1463,13 +1484,14 @@
 
         const saveToCloud = async (colName, id, data) => {
           if (!user.value || !db) return;
-          try { await setDoc(getPublicDoc(colName, id), data); } catch (e) { alert("保存に失敗しました。"); }
+          try { await setDoc(getPublicDoc(colName, id), data); } catch (e) { customAlert("保存に失敗しました。"); }
         };
         const deleteFromCloud = async (colName, id) => {
           if (!user.value || !db) return;
           try { await deleteDoc(getPublicDoc(colName, id)); } catch (e) {}
         };
 
+        // --- STREAMING_CHUNK:Setting up students logic... ---
         const sortBy = (key) => { if (sortConfig.key === key) { sortConfig.order = sortConfig.order === 'asc' ? 'desc' : 'asc'; } else { sortConfig.key = key; sortConfig.order = 'asc'; } };
         const resetSort = () => { sortConfig.key = null; sortConfig.order = 'asc'; };
         const downloadCSVTemplate = () => {
@@ -1497,8 +1519,8 @@
                 }
               });
               if(batch && user.value) await batch.commit();
-              alert(`${count}名の生徒をインポートしました。`);
-            } catch (err) { alert("エラーが発生しました。"); } 
+              customAlert(`${count}名の生徒をインポートしました。`);
+            } catch (err) { customAlert("エラーが発生しました。"); } 
             finally { loadingData.value = false; e.target.value = ''; }
           };
           reader.readAsText(file);
@@ -1506,7 +1528,7 @@
         const openAddStudentModal = () => { Object.assign(studentForm, { id: null, name: '', grade: 1, number: '', position: '', isGraduated: false }); showStudentModal.value = true; };
         const editStudent = (s) => { Object.assign(studentForm, JSON.parse(JSON.stringify(s))); showStudentModal.value = true; };
         const saveStudent = async () => {
-          if (!studentForm.name) { alert('名前は必須です'); return; }
+          if (!studentForm.name) { customAlert('名前は必須です'); return; }
           loadingData.value = true;
           const isNew = !studentForm.id;
           if (isNew) { studentForm.id = crypto.randomUUID(); studentForm.createdAt = Date.now(); }
@@ -1516,16 +1538,22 @@
           await saveToCloud('students', dataToSave.id, dataToSave);
           loadingData.value = false;
         };
-        const deleteStudent = async (id) => { if(confirm("削除しますか？")) { students.value = students.value.filter(s => s.id !== id); await deleteFromCloud('students', id); } };
+        const deleteStudent = async (id) => { 
+          if(await customConfirm("削除しますか？")) { 
+            students.value = students.value.filter(s => s.id !== id); 
+            await deleteFromCloud('students', id); 
+          } 
+        };
         const updateAcademicYear = async () => {
-          if(!confirm("年度更新を実行しますか？")) return;
+          if(!(await customConfirm("年度更新を実行しますか？"))) return;
           loadingData.value = true;
           try {
             let batch = (db && user.value) ? writeBatch(db) : null;
             students.value.forEach(s => {
                if(!s.isGraduated) { s.grade += 1; if(s.grade > 3) s.isGraduated = true; if (batch) batch.set(getPublicDoc('students', s.id), s); }
             });
-            if(batch && user.value) await batch.commit(); alert("更新が完了しました。");
+            if(batch && user.value) await batch.commit(); 
+            customAlert("更新が完了しました。");
           } catch(e) {} finally { loadingData.value = false; }
         };
         const getStudentName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name : '不明'; };
@@ -1556,6 +1584,7 @@
           showStudentDetailModal.value = true;
         };
 
+        // --- STREAMING_CHUNK:Setting up practice logic... ---
         const openPracticeForm = () => {
           Object.assign(practiceForm, getEmptyPracticeForm()); autoSetHoliday();
           activeStudents.value.forEach(s => { practiceForm.attendance[s.id] = { status: '出席', reason: '', otherReason: '' }; });
@@ -1619,20 +1648,30 @@
         const addPracticeMenu = () => { const val = newMenuName.value.trim(); if(val && !settings.practiceMenus.includes(val)) { settings.practiceMenus.push(val); newMenuName.value = ''; saveSettings(); } };
         const removePracticeMenu = (index) => { settings.practiceMenus.splice(index, 1); saveSettings(); };
         const addSettingMenuInline = () => { const val = newPracticeMenuInput.value.trim(); if(val && !settings.practiceMenus.includes(val)) { settings.practiceMenus.push(val); newPracticeMenuInput.value = ''; saveSettings(); } };
-        const deleteSettingMenu = (index) => { if(confirm("削除しますか？")) { settings.practiceMenus.splice(index, 1); saveSettings(); } };
+        const deleteSettingMenu = async (index) => { 
+          if(await customConfirm("削除しますか？")) { 
+            settings.practiceMenus.splice(index, 1); saveSettings(); 
+          } 
+        };
 
         const addMenuToPractice = (menu) => { practiceForm.menus.push(menu); };
         const removeMenuFromPractice = (index) => { practiceForm.menus.splice(index, 1); };
 
         const savePractice = async () => {
-          if (!practiceForm.date) { alert("日付を入力してください"); return; }
+          if (!practiceForm.date) { customAlert("日付を入力してください"); return; }
           const isNew = !practiceForm.id; if (isNew) practiceForm.id = crypto.randomUUID();
           const dataToSave = JSON.parse(JSON.stringify(practiceForm));
           if (isNew) practices.value.push(dataToSave); else { const idx = practices.value.findIndex(p => p.id === dataToSave.id); if(idx !== -1) practices.value[idx] = dataToSave; }
           isEditingPractice.value = false; await saveToCloud('practices', dataToSave.id, dataToSave);
         };
-        const deletePractice = async (id) => { if(confirm("削除しますか？")) { practices.value = practices.value.filter(p => p.id !== id); isEditingPractice.value = false; await deleteFromCloud('practices', id); } };
+        const deletePractice = async (id) => { 
+          if(await customConfirm("削除しますか？")) { 
+            practices.value = practices.value.filter(p => p.id !== id); 
+            isEditingPractice.value = false; await deleteFromCloud('practices', id); 
+          } 
+        };
 
+        // --- STREAMING_CHUNK:Setting up match logic... ---
         const openMatchForm = () => { 
           Object.assign(matchForm, getEmptyMatchForm()); 
           resetQuickRecord();
@@ -1645,64 +1684,7 @@
           resetQuickRecord();
           isEditingMatch.value = true;
         };
-
-        const handleFormationChange = () => {
-          if (matchForm.formation === 'フリー' || !formations[matchForm.formation]) return;
-          const newPositions = formations[matchForm.formation].map(p => p.id);
-          const currentLineup = { ...matchForm.lineup };
-          matchForm.lineup = {};
-          const unassignedStudents = [];
-          
-          for (const posId in currentLineup) {
-            if (newPositions.includes(posId)) {
-              matchForm.lineup[posId] = currentLineup[posId];
-              if (matchForm.studentComments[currentLineup[posId]]) {
-                 matchForm.studentComments[currentLineup[posId]].position = formations[matchForm.formation].find(p => p.id === posId).name;
-              }
-            } else {
-              unassignedStudents.push(currentLineup[posId]);
-            }
-          }
-          
-          for (const posId of newPositions) {
-            if (!matchForm.lineup[posId] && unassignedStudents.length > 0) {
-              const studentId = unassignedStudents.shift();
-              matchForm.lineup[posId] = studentId;
-              if (matchForm.studentComments[studentId]) {
-                 matchForm.studentComments[studentId].position = formations[matchForm.formation].find(p => p.id === posId).name;
-              }
-            }
-          }
-          
-          unassignedStudents.forEach(studentId => {
-            if (matchForm.studentComments[studentId]) {
-               matchForm.studentComments[studentId].position = '';
-            }
-          });
-        };
-
-        const handleOpponentFormationChange = () => {
-          if (matchForm.opponentFormation === 'フリー' || !formations[matchForm.opponentFormation]) return;
-          const newPositions = formations[matchForm.opponentFormation].map(p => p.id);
-          const currentLineup = { ...matchForm.opponentLineup };
-          matchForm.opponentLineup = {};
-          const unassignedPlayers = [];
-          
-          for (const posId in currentLineup) {
-            if (newPositions.includes(posId)) {
-              matchForm.opponentLineup[posId] = currentLineup[posId];
-            } else {
-              unassignedPlayers.push(currentLineup[posId]);
-            }
-          }
-          
-          for (const posId of newPositions) {
-            if (!matchForm.opponentLineup[posId] && unassignedPlayers.length > 0) {
-              matchForm.opponentLineup[posId] = unassignedPlayers.shift();
-            }
-          }
-        };
-
+        const handleFormationChange = () => {};
         const getPositionName = (posId) => { const p = currentFormationPositions.value.find(pos => pos.id === posId) || currentOpponentFormationPositions.value.find(pos => pos.id === posId); return p ? p.name : ''; };
         const openPlayerSelect = (posId) => { selectingPositionId.value = posId; isSelectingPlayer.value = true; };
         const selectPlayerForPosition = (studentId) => {
@@ -1716,14 +1698,14 @@
         const fillActiveStudentsToMatch = () => { activeStudents.value.forEach(s => { if(!matchForm.studentComments[s.id]) matchForm.studentComments[s.id] = { position: s.position || '', comment: '' }; }); };
         const removeStudentFromMatch = (studentId) => { delete matchForm.studentComments[studentId]; for (const posId in matchForm.lineup) { if (matchForm.lineup[posId] === studentId) delete matchForm.lineup[posId]; } };
         const saveCurrentLineup = () => {
-          const name = prompt("現在のスタメンに名前を付けて保存します。\n(例: Aチーム)");
-          if (!name) return;
+          const name = "スタメン " + new Date().toLocaleTimeString().slice(0,5);
           if (!settings.savedLineups) settings.savedLineups = [];
           settings.savedLineups.push({ id: crypto.randomUUID(), name: name, formation: matchForm.formation, lineup: JSON.parse(JSON.stringify(matchForm.lineup)) });
-          saveSettings(); alert("保存しました！");
+          saveSettings(); 
+          customAlert("現在のスタメンを保存しました。\n後で設定画面から名前を変更できます。");
         };
-        const loadLineup = (lu) => {
-          if (!confirm(`「${lu.name}」を読み込みますか？`)) return;
+        const loadLineup = async (lu) => {
+          if (!await customConfirm(`「${lu.name}」を読み込みますか？`)) return;
           matchForm.formation = lu.formation; matchForm.lineup = JSON.parse(JSON.stringify(lu.lineup));
           for (const posId in matchForm.lineup) {
              const studentId = matchForm.lineup[posId]; const posName = getPositionName(posId) || '';
@@ -1731,7 +1713,10 @@
           }
           showLoadLineupModal.value = false;
         };
-        const deleteSavedLineup = (id) => { if(!confirm("削除しますか？")) return; settings.savedLineups = settings.savedLineups.filter(lu => lu.id !== id); saveSettings(); };
+        const deleteSavedLineup = async (id) => { 
+          if(!await customConfirm("削除しますか？")) return; 
+          settings.savedLineups = settings.savedLineups.filter(lu => lu.id !== id); saveSettings(); 
+        };
 
         const openOpponentPlayerSelect = (posId) => {
           selectingOpponentPositionId.value = posId;
@@ -1750,12 +1735,18 @@
           if (isNew) matches.value.push(dataToSave); else { const idx = matches.value.findIndex(m => m.id === dataToSave.id); if(idx !== -1) matches.value[idx] = dataToSave; }
           isEditingMatch.value = false; await saveToCloud('matches', dataToSave.id, dataToSave);
         };
-        const deleteMatch = async (id) => { if(confirm("削除しますか？")) { matches.value = matches.value.filter(m => m.id !== id); isEditingMatch.value = false; await deleteFromCloud('matches', id); } };
+        const deleteMatch = async (id) => { 
+          if(await customConfirm("削除しますか？")) { 
+            matches.value = matches.value.filter(m => m.id !== id); 
+            isEditingMatch.value = false; await deleteFromCloud('matches', id); 
+          } 
+        };
 
+        // --- STREAMING_CHUNK:Setting up memo and backup logic... ---
         const openMemoForm = () => { Object.assign(memoForm, getEmptyMemoForm()); isEditingMemo.value = true; };
         const editMemo = (m) => { Object.assign(memoForm, JSON.parse(JSON.stringify(m))); isEditingMemo.value = true; };
         const saveMemo = async () => {
-          if (!memoForm.title) { alert("タイトルを入力してください"); return; }
+          if (!memoForm.title) { customAlert("タイトルを入力してください"); return; }
           loadingData.value = true;
           const isNew = !memoForm.id; if (isNew) { memoForm.id = crypto.randomUUID(); }
           memoForm.updatedAt = Date.now();
@@ -1763,12 +1754,17 @@
           if (isNew) memos.value.push(dataToSave); else { const idx = memos.value.findIndex(m => m.id === dataToSave.id); if(idx !== -1) memos.value[idx] = dataToSave; }
           isEditingMemo.value = false; await saveToCloud('memos', dataToSave.id, dataToSave); loadingData.value = false;
         };
-        const deleteMemo = async (id) => { if(confirm("削除しますか？")) { memos.value = memos.value.filter(m => m.id !== id); isEditingMemo.value = false; await deleteFromCloud('memos', id); } };
+        const deleteMemo = async (id) => { 
+          if(await customConfirm("削除しますか？")) { 
+            memos.value = memos.value.filter(m => m.id !== id); 
+            isEditingMemo.value = false; await deleteFromCloud('memos', id); 
+          } 
+        };
 
         const saveFirebaseConfig = () => {
           try {
             let configText = firebaseConfigInput.value.trim();
-            if (!configText) { alert("設定が入力されていません。"); return; }
+            if (!configText) { customAlert("設定が入力されていません。"); return; }
             const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
             const configObj = {}; let isExtracted = true;
             for (const key of keys) {
@@ -1780,19 +1776,27 @@
               configText = configText.replace(/[“”″]/g, '"').replace(/[‘’′]/g, "'").replace(/　/g, ' ').replace(/,\s*}/g, '}').replace(/[\u200B-\u200D\uFEFF]/g, ''); 
               JSON.parse(configText); localStorage.setItem('soccer_mgr_firebase_config', configText);
             }
-            alert("Firebase設定を保存しました。アプリを再読み込みして適用します。"); window.location.reload();
-          } catch(e) { alert("設定を読み取れませんでした。"); }
+            customAlert("Firebase設定を保存しました。アプリを再読み込みして適用します。"); 
+            setTimeout(() => window.location.reload(), 1500);
+          } catch(e) { customAlert("設定を読み取れませんでした。"); }
         };
-        const clearFirebaseConfig = () => { if(confirm("Firebase設定をクリアし、標準環境に戻しますか？")) { localStorage.removeItem('soccer_mgr_firebase_config'); firebaseConfigInput.value = ''; window.location.reload(); } };
+        
+        const clearFirebaseConfig = async () => { 
+          if(await customConfirm("Firebase設定をクリアし、標準環境に戻しますか？")) { 
+            localStorage.removeItem('soccer_mgr_firebase_config'); 
+            firebaseConfigInput.value = ''; 
+            window.location.reload(); 
+          } 
+        };
         
         const exportJSON = () => {
           const data = { version, exportDate: new Date().toISOString(), students: students.value, practices: practices.value, matches: matches.value, memos: memos.value, settings };
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `soccer_team_backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url);
         };
-        const importJSON = (e) => {
+        const importJSON = async (e) => {
           const file = e.target.files[0]; if(!file) return;
-          if(!confirm("現在のデータを上書きし、復元を実行しますか？")) { e.target.value = ''; return; }
+          if(!await customConfirm("現在のデータを上書きし、復元を実行しますか？")) { e.target.value = ''; return; }
           const reader = new FileReader();
           reader.onload = async (event) => {
             loadingData.value = true;
@@ -1817,13 +1821,14 @@
                 if(data.matches) data.matches.forEach(m => batch.set(getPublicDoc('matches', m.id), m));
                 if(data.memos) data.memos.forEach(m => batch.set(getPublicDoc('memos', m.id), m));
                 if(data.settings) batch.set(getPublicDoc('settings', 'app_settings'), data.settings);
-                await batch.commit(); alert("復元が完了しました。");
-              } else { alert("ローカルデータとして復元しました。"); }
-            } catch (err) { alert("ファイルの読み込みに失敗しました。"); } finally { loadingData.value = false; e.target.value = ''; }
+                await batch.commit(); customAlert("復元が完了しました。");
+              } else { customAlert("ローカルデータとして復元しました。"); }
+            } catch (err) { customAlert("ファイルの読み込みに失敗しました。"); } finally { loadingData.value = false; e.target.value = ''; }
           };
           reader.readAsText(file);
         };
 
+        // --- STREAMING_CHUNK:Returning references to template... ---
         return {
           version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
           students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, getStudentShortName, getStudentNumber, studentStats, sortConfig, sortBy, resetSort,
@@ -1832,11 +1837,12 @@
           getWeekday, autoSetHoliday, formatDate,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, 
           addTimePattern, removeTimePattern, addPracticeMenu, removePracticeMenu, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
-          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, handleOpponentFormationChange, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
+          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
           quickRecordState, matchTimer, toggleMatchTimer, resetTimer, formatTimer, setQuickRecordPlayer, addQuickRecordAction, resetQuickRecord,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
           settings, newMenuName, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON,
-          availableStudentsForLineup, availableOpponentPlayersForQuickRecord, isSelectingSubForQuickRecord, subbingOutPlayerId, openSubSelection, confirmSubstitution
+          availableStudentsForLineup, isSelectingSubForQuickRecord, subbingOutPlayerId, openSubSelection, confirmSubstitution,
+          dialogState, handleDialogOk, handleDialogCancel
         };
       }
     }).mount('#app');
