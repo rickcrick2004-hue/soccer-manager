@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.10.0</title>
+  <title>Soccer Team Manager v1.11.0</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -12,7 +12,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
-    [v-cloak] { display: none; }
     /* Custom Scrollbar for Dark Theme */
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: #0f172a; }
@@ -40,7 +39,7 @@
 </head>
 <body class="bg-slate-900 text-slate-200 h-screen overflow-hidden selection:bg-emerald-500 selection:text-white">
   
-  <div id="app" class="flex h-full w-full" v-cloak>
+  <div id="app" class="flex h-full w-full">
 
     <!-- カスタムダイアログ (alert/confirmの代替) -->
     <div v-if="dialogState.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm fade-in p-4">
@@ -103,10 +102,10 @@
         <p class="text-emerald-400 font-medium tracking-widest">LOADING DATA...</p>
       </div>
 
-      <div class="p-4 md:p-8 max-w-7xl mx-auto pb-24">
+      <div class="p-4 md:p-8 max-w-7xl mx-auto pb-24 h-full flex flex-col">
         
         <!-- Header -->
-        <header class="mb-8 flex justify-between items-end">
+        <header class="mb-8 flex justify-between items-end shrink-0">
           <div>
             <h1 class="text-3xl font-extrabold text-white tracking-tight">{{ viewTitle }}</h1>
             <p class="text-slate-400 mt-1 text-sm">{{ viewSubtitle }}</p>
@@ -561,7 +560,9 @@
                  </div>
                  <!-- 試合詳細・感想プレビュー -->
                  <div v-if="m.scorers || m.overallComment" class="bg-slate-900/50 px-5 py-3 border-t border-slate-700/50 text-sm">
-                   <div v-if="m.scorers" class="text-emerald-400 mb-1"><i class="fa-solid fa-futbol mr-2 opacity-80"></i>得点: {{ m.scorers }}</div>
+                   <div v-if="m.scorers" class="mb-2 p-2 bg-slate-900/80 rounded border border-slate-700/50 space-y-0.5 text-xs font-mono">
+                     <div v-for="(line, idx) in m.scorers.split('\n')" :key="idx" v-html="formatTimelineLine(line)"></div>
+                   </div>
                    <div v-if="m.overallComment" class="text-slate-400 line-clamp-2 leading-relaxed mt-1"><i class="fa-solid fa-comment-dots mr-2 text-slate-500"></i>{{ m.overallComment }}</div>
                  </div>
                </div>
@@ -693,8 +694,14 @@
               </div>
 
               <div>
-                <label class="form-label">試合詳細タイムライン (自動入力または自由記述)</label>
-                <textarea v-model="matchForm.scorers" rows="4" class="form-input resize-y font-mono text-sm leading-relaxed" placeholder="前半15分 山田 得点&#10;後半10分 失点..."></textarea>
+                <label class="form-label">試合詳細タイムライン (自動入力または手動調整)</label>
+                <div class="mb-2 p-3 bg-slate-900 rounded-lg min-h-[60px] text-sm font-mono leading-relaxed space-y-1 border border-slate-700 shadow-inner">
+                   <template v-for="(line, idx) in matchForm.scorers.split('\n')" :key="idx">
+                     <div v-if="line" v-html="formatTimelineLine(line)"></div>
+                   </template>
+                   <div v-if="!matchForm.scorers" class="text-slate-600">まだ記録がありません</div>
+                </div>
+                <textarea v-model="matchForm.scorers" rows="2" class="form-input resize-y font-mono text-xs text-slate-400 bg-slate-800" placeholder="手動で追記・修正する場合はこちらへ&#10;前半15分 山田 (得点)..."></textarea>
               </div>
             </div>
 
@@ -717,6 +724,7 @@
                     <option value="3-5-2">3-5-2</option>
                     <option value="3-4-3">3-4-3</option>
                     <option value="5-2-3">5-2-3</option>
+                    <option value="5-3-2">5-3-2</option>
                     <option value="5-1-3-1">5-1-3-1</option>
                     <option value="フリー">フリー (手動入力)</option>
                   </select>
@@ -786,6 +794,7 @@
                     <option value="3-5-2">3-5-2</option>
                     <option value="3-4-3">3-4-3</option>
                     <option value="5-2-3">5-2-3</option>
+                    <option value="5-3-2">5-3-2</option>
                     <option value="5-1-3-1">5-1-3-1</option>
                     <option value="フリー">フリー (手動入力)</option>
                   </select>
@@ -960,9 +969,9 @@
         </div>
 
         <!-- MEMO VIEW -->
-        <div v-if="currentView === 'memo'" class="space-y-6 fade-in">
+        <div v-if="currentView === 'memo'" class="space-y-6 fade-in flex flex-col h-full">
           <!-- List Mode -->
-          <div v-if="!isEditingMemo">
+          <div v-if="!isEditingMemo" class="flex-1">
             <div class="flex justify-between items-center mb-6">
               <h2 class="text-xl font-bold text-white">メモ一覧</h2>
               <button @click="openMemoForm()" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>新規メモ</button>
@@ -977,8 +986,8 @@
             </div>
           </div>
 
-          <!-- Form Mode (変更点: メモ欄の拡大 min-h-[60vh] を追加) -->
-          <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative flex flex-col h-full min-h-[85vh]">
+          <!-- Form Mode -->
+          <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative flex flex-col min-h-[85vh]">
             <button @click="isEditingMemo = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-2xl font-bold text-white mb-6 shrink-0">{{ memoForm.id ? 'メモの編集' : '新規メモ' }}</h2>
             
@@ -989,7 +998,7 @@
               </div>
               <div class="flex-1 flex flex-col">
                 <label class="form-label">内容</label>
-                <textarea v-model="memoForm.content" class="form-input flex-1 resize-y font-mono text-base leading-relaxed min-h-[50vh]" placeholder="生徒へ話す内容などを入力..."></textarea>
+                <textarea v-model="memoForm.content" class="form-input flex-1 resize-none font-mono text-base leading-relaxed" placeholder="生徒へ話す内容などを入力..."></textarea>
               </div>
             </div>
 
@@ -1098,7 +1107,7 @@
 
     const { createApp, ref, reactive, computed, onMounted } = Vue;
 
-    // --- フォーメーション定義 (5-2-3 を追加) ---
+    // --- フォーメーション定義 ---
     const formations = {
       '4-4-2': [
         { id: 'fw1', name: 'FW', top: '15%', left: '35%' }, { id: 'fw2', name: 'FW', top: '15%', left: '65%' },
@@ -1138,6 +1147,12 @@
          { id: 'df1', name: 'LWB', top: '70%', left: '10%' }, { id: 'df2', name: 'CB', top: '75%', left: '30%' }, { id: 'df3', name: 'CB', top: '75%', left: '50%' }, { id: 'df4', name: 'CB', top: '75%', left: '70%' }, { id: 'df5', name: 'RWB', top: '70%', left: '90%' },
          { id: 'gk', name: 'GK', top: '90%', left: '50%' }
       ],
+      '5-3-2': [
+         { id: 'fw1', name: 'FW', top: '15%', left: '35%' }, { id: 'fw2', name: 'FW', top: '15%', left: '65%' },
+         { id: 'mf1', name: 'CMF', top: '40%', left: '25%' }, { id: 'mf2', name: 'CMF', top: '40%', left: '50%' }, { id: 'mf3', name: 'CMF', top: '40%', left: '75%' },
+         { id: 'df1', name: 'SB', top: '70%', left: '15%' }, { id: 'df2', name: 'CB', top: '75%', left: '35%' }, { id: 'df3', name: 'CB', top: '75%', left: '50%' }, { id: 'df4', name: 'CB', top: '75%', left: '65%' }, { id: 'df5', name: 'SB', top: '70%', left: '85%' },
+         { id: 'gk', name: 'GK', top: '90%', left: '50%' }
+      ],
       '5-1-3-1': [
          { id: 'fw1', name: 'CF', top: '10%', left: '50%' },
          { id: 'mf1', name: 'SH', top: '30%', left: '20%' }, { id: 'mf2', name: 'OMF', top: '30%', left: '50%' }, { id: 'mf3', name: 'SH', top: '30%', left: '80%' },
@@ -1149,7 +1164,7 @@
 
     createApp({
       setup() {
-        const version = "1.10.0";
+        const version = "1.11.0";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -1157,7 +1172,7 @@
         let db = null;
         let appId = typeof __app_id !== 'undefined' ? __app_id : 'soccer-manager-final'; 
 
-        // --- カスタムダイアログの実装 ---
+        // --- STREAMING_CHUNK:Setting up Custom Dialog Methods... ---
         const dialogState = reactive({
           isOpen: false,
           message: '',
@@ -1193,8 +1208,8 @@
             dialogState.resolve(false);
           }
         };
-        // ---------------------------------
 
+        // --- STREAMING_CHUNK:Defining State Variables... ---
         const students = ref([]);
         const practices = ref([]);
         const matches = ref([]);
@@ -1230,7 +1245,7 @@
         const showStudentDetailModal = ref(false);
         const selectedStudentForDetail = ref(null);
 
-        // --- ワンタップ記録ツール用の状態 ---
+        // --- STREAMING_CHUNK:Setting up Match Timer and Quick Record... ---
         const quickRecordState = reactive({ player: null });
         const matchTimer = reactive({ isRunning: false, seconds: 0, period: '前半', intervalId: null });
 
@@ -1274,7 +1289,11 @@
           quickRecordState.player = null;
         };
 
-        // --- 交代機能用の状態と関数 ---
+        const getStudentName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name : '不明'; };
+        const getStudentNumber = (id) => { const s = students.value.find(st => st.id === id); return s && s.number ? s.number : ''; };
+        const getStudentShortName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name.split(' ')[0].split('　')[0].substring(0, 4) : ''; };
+
+        // --- STREAMING_CHUNK:Configuring Sub Out and Action Methods... ---
         const activeStudents = computed(() => students.value.filter(s => !s.isGraduated).sort((a,b) => a.grade - b.grade));
         const obStudents = computed(() => students.value.filter(s => s.isGraduated).sort((a,b) => b.grade - a.grade));
         
@@ -1285,6 +1304,11 @@
 
         const isSelectingSubForQuickRecord = ref(false);
         const subbingOutPlayerId = ref(null);
+
+        const getPositionName = (posId) => { 
+          const p = currentFormationPositions.value.find(pos => pos.id === posId) || currentOpponentFormationPositions.value.find(pos => pos.id === posId); 
+          return p ? p.name : ''; 
+        };
 
         const openSubSelection = () => {
           if (!quickRecordState.player) { showAlert("先に「1.選手を選択」から退く選手(OUT)を選んでください"); return; }
@@ -1309,7 +1333,7 @@
             }
           }
           if (outPosId) {
-            matchForm.lineup[outPosId] = inPlayerId; // フォーメーション交代
+            matchForm.lineup[outPosId] = inPlayerId;
           }
           
           if (!matchForm.studentComments[inPlayerId]) {
@@ -1326,17 +1350,22 @@
           if (!quickRecordState.player) { showAlert("先に「1.選手を選択」から選手を選んでください"); return; }
           
           if (action === '得点') {
-              if (quickRecordState.player === 'opponent') matchForm.scoreThem++;
-              else matchForm.scoreUs++;
+              if (quickRecordState.player === 'opponent') {
+                  matchForm.scoreThem++;
+              } else {
+                  matchForm.scoreUs++;
+                  if (!matchForm.quickRecordStats) matchForm.quickRecordStats = {};
+                  if (!matchForm.quickRecordStats[quickRecordState.player]) matchForm.quickRecordStats[quickRecordState.player] = {};
+                  matchForm.quickRecordStats[quickRecordState.player]['シュート'] = (matchForm.quickRecordStats[quickRecordState.player]['シュート'] || 0) + 1;
+              }
           }
           
           const timeStr = matchTimer.seconds > 0 ? `${getTimerMinuteStr()} ` : '';
-          const playerName = quickRecordState.player === 'opponent' ? '相手チーム' : getStudentName(quickRecordState.player);
-          const record = `${timeStr}${playerName} (${action})`;
+          let playerName = quickRecordState.player === 'opponent' ? '相手チーム' : getStudentName(quickRecordState.player);
           
+          const record = `${timeStr}${playerName} (${action})`;
           matchForm.scorers = matchForm.scorers ? matchForm.scorers + '\n' + record : record;
 
-          // 成績まとめ用のデータ保存
           if (quickRecordState.player !== 'opponent') {
               if (!matchForm.quickRecordStats) matchForm.quickRecordStats = {};
               if (!matchForm.quickRecordStats[quickRecordState.player]) {
@@ -1349,6 +1378,22 @@
           quickRecordState.player = null; 
         };
 
+        const formatTimelineLine = (line) => {
+          if (!line) return '';
+          let safeLine = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          if (safeLine.includes('(得点)')) {
+            if (safeLine.includes('相手チーム')) {
+              return `<span class="text-blue-400 font-bold bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-500/30 shadow-sm"><i class="fa-solid fa-futbol mr-1.5 opacity-80"></i>${safeLine}</span>`;
+            } else {
+              return `<span class="text-red-500 font-bold bg-red-900/30 px-1.5 py-0.5 rounded border border-red-500/30 shadow-sm"><i class="fa-solid fa-futbol mr-1.5 opacity-80"></i>${safeLine}</span>`;
+            }
+          } else if (safeLine.includes('(警告)')) {
+            return `<span class="text-amber-400"><i class="fa-solid fa-square mr-1"></i>${safeLine}</span>`;
+          }
+          return `<span class="text-slate-300">${safeLine}</span>`;
+        };
+
+        // --- STREAMING_CHUNK:Configuring General Helper Methods... ---
         const customFirebaseEnabled = ref(false);
         const firebaseConfigInput = ref('');
 
@@ -1400,7 +1445,7 @@
 
         const viewTitle = computed(() => ({ dashboard: 'ダッシュボード', students: '名簿・生徒管理', practice: '練習記録', match: '試合記録', memo: 'メモ', settings: '設定・データ' }[currentView.value]));
         const viewSubtitle = computed(() => ({ dashboard: 'チームの現状を一目で確認', students: '部員の登録・更新・状態管理', practice: '日々の練習メニューと出席状況', match: '対戦結果・フォーメーション分析', memo: '日々の気づきやアイデアを記録', settings: 'アプリの基本設定とバックアップ' }[currentView.value]));
-        
+
         const studentStats = computed(() => {
           const stats = {};
           students.value.forEach(s => { stats[s.id] = { weekdayAbsent: 0, holidayAbsent: 0 }; });
@@ -1441,6 +1486,7 @@
           return formations[matchForm.opponentFormation].map(pos => ({ ...pos, top: `calc(100% - ${pos.top})`, left: `calc(100% - ${pos.left})` }));
         });
 
+        // --- STREAMING_CHUNK:Configuring Firebase and Data Loading... ---
         onMounted(() => {
           const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
           if (storedConfig) { firebaseConfigInput.value = storedConfig; }
@@ -1518,6 +1564,7 @@
           try { await deleteDoc(getPublicDoc(colName, id)); } catch (e) {}
         };
 
+        // --- STREAMING_CHUNK:Configuring Form and Action Methods... ---
         const sortBy = (key) => { if (sortConfig.key === key) { sortConfig.order = sortConfig.order === 'asc' ? 'desc' : 'asc'; } else { sortConfig.key = key; sortConfig.order = 'asc'; } };
         const resetSort = () => { sortConfig.key = null; sortConfig.order = 'asc'; };
         const downloadCSVTemplate = () => {
@@ -1551,6 +1598,7 @@
           };
           reader.readAsText(file);
         };
+        
         const openAddStudentModal = () => { Object.assign(studentForm, { id: null, name: '', grade: 1, number: '', position: '', isGraduated: false }); showStudentModal.value = true; };
         const editStudent = (s) => { Object.assign(studentForm, JSON.parse(JSON.stringify(s))); showStudentModal.value = true; };
         const saveStudent = async () => {
@@ -1564,12 +1612,9 @@
           await saveToCloud('students', dataToSave.id, dataToSave);
           loadingData.value = false;
         };
-        const deleteStudent = async (id) => { 
+        const deleteStudent = async (id) => {
           const confirmed = await showConfirm("削除しますか？");
-          if(confirmed) { 
-            students.value = students.value.filter(s => s.id !== id); 
-            await deleteFromCloud('students', id); 
-          } 
+          if(confirmed) { students.value = students.value.filter(s => s.id !== id); await deleteFromCloud('students', id); } 
         };
         const updateAcademicYear = async () => {
           const confirmed = await showConfirm("年度更新を実行しますか？");
@@ -1583,9 +1628,6 @@
             if(batch && user.value) await batch.commit(); showAlert("更新が完了しました。");
           } catch(e) {} finally { loadingData.value = false; }
         };
-        const getStudentName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name : '不明'; };
-        const getStudentNumber = (id) => { const s = students.value.find(st => st.id === id); return s && s.number ? s.number : ''; };
-        const getStudentShortName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name.split(' ')[0].split('　')[0].substring(0, 4) : ''; };
 
         const selectedStudentAttendanceHistory = computed(() => {
           if (!selectedStudentForDetail.value) return [];
@@ -1704,11 +1746,12 @@
           if(!matchForm.opponentPlayers) matchForm.opponentPlayers = []; if(!matchForm.studentComments) matchForm.studentComments = {}; if(!matchForm.lineup) matchForm.lineup = {};
           if(!matchForm.formation) matchForm.formation = '4-2-3-1'; if(!matchForm.opponentFormation) matchForm.opponentFormation = '4-4-2'; if(!matchForm.opponentLineup) matchForm.opponentLineup = {};
           if(!matchForm.quickRecordStats) matchForm.quickRecordStats = {};
+          if(!matchForm.scorers) matchForm.scorers = '';
           resetQuickRecord();
           isEditingMatch.value = true;
         };
         const handleFormationChange = () => {};
-        const getPositionName = (posId) => { const p = currentFormationPositions.value.find(pos => pos.id === posId) || currentOpponentFormationPositions.value.find(pos => pos.id === posId); return p ? p.name : ''; };
+        
         const openPlayerSelect = (posId) => { selectingPositionId.value = posId; isSelectingPlayer.value = true; };
         const selectPlayerForPosition = (studentId) => {
           if (studentId === null) { delete matchForm.lineup[selectingPositionId.value]; } 
@@ -1720,9 +1763,8 @@
         };
         const fillActiveStudentsToMatch = () => { activeStudents.value.forEach(s => { if(!matchForm.studentComments[s.id]) matchForm.studentComments[s.id] = { position: s.position || '', comment: '' }; }); };
         const removeStudentFromMatch = (studentId) => { delete matchForm.studentComments[studentId]; for (const posId in matchForm.lineup) { if (matchForm.lineup[posId] === studentId) delete matchForm.lineup[posId]; } };
-        const saveCurrentLineup = () => {
-          // Note: カスタムダイアログでのpromptは実装が複雑になるため、ここでは簡易的にデフォルト名を使用するか固定にするが、
-          // 既存のpromptを残すと問題になるか？ -> promptはエラーになりにくいが念のため固定名＋ランダムにする
+        
+        const saveCurrentLineup = async () => {
           const name = `保存したスタメン (${new Date().toLocaleTimeString().slice(0,5)})`;
           if (!settings.savedLineups) settings.savedLineups = [];
           settings.savedLineups.push({ id: crypto.randomUUID(), name: name, formation: matchForm.formation, lineup: JSON.parse(JSON.stringify(matchForm.lineup)) });
@@ -1849,6 +1891,7 @@
           processImport();
         };
 
+        // --- STREAMING_CHUNK:Returning Component Scope Variables... ---
         return {
           version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
           dialogState, handleDialogConfirm, handleDialogCancel,
@@ -1859,7 +1902,7 @@
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, 
           addTimePattern, removeTimePattern, addPracticeMenu, removePracticeMenu, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
           matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
-          quickRecordState, matchTimer, toggleMatchTimer, resetTimer, formatTimer, setQuickRecordPlayer, addQuickRecordAction, resetQuickRecord,
+          quickRecordState, matchTimer, toggleMatchTimer, resetTimer, formatTimer, setQuickRecordPlayer, addQuickRecordAction, resetQuickRecord, formatTimelineLine,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
           settings, newMenuName, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON,
           availableStudentsForLineup, isSelectingSubForQuickRecord, subbingOutPlayerId, openSubSelection, confirmSubstitution
