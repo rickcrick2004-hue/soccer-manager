@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soccer Team Manager v1.11.0</title>
+  <title>Soccer Team Manager v1.11.1</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Vue 3 -->
@@ -490,15 +490,17 @@
                           <button type="button" @click="setAttendance(s.id, '遅刻(1時間)')" :class="['px-3 py-1.5 font-medium transition border-l border-slate-700', practiceForm.attendance[s.id]?.status === '遅刻(1時間)' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">遅刻(1時間)</button>
                           <button type="button" @click="setAttendance(s.id, '早退')" :class="['px-3 py-1.5 font-medium transition border-l border-slate-700', practiceForm.attendance[s.id]?.status === '早退' ? 'bg-amber-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700']">早退</button>
                         </div>
-                        <select v-model="practiceForm.attendance[s.id].reason" class="form-input text-xs py-1.5 px-2 w-28 shrink-0" :disabled="practiceForm.attendance[s.id]?.status === '出席'">
+                        <select v-model="practiceForm.attendance[s.id].reason" class="form-input text-xs py-1.5 px-2 w-28 shrink-0">
                           <option value="">理由を選択</option>
                           <option value="朝学">朝学</option>
                           <option value="体調不良">体調不良</option>
                           <option value="宿題">宿題</option>
                           <option value="用事">用事</option>
+                          <option value="寝坊">寝坊</option>
+                          <option value="塾">塾</option>
                           <option value="その他">その他</option>
                         </select>
-                        <input v-if="practiceForm.attendance[s.id].reason === 'その他'" type="text" v-model="practiceForm.attendance[s.id].otherReason" placeholder="理由を入力..." class="form-input text-xs py-1.5 px-2 flex-1 outline-none min-w-[150px]">
+                        <input type="text" v-model="practiceForm.attendance[s.id].otherReason" placeholder="詳細・コメント..." class="form-input text-xs py-1.5 px-2 flex-1 outline-none min-w-[150px]">
                       </td>
                     </tr>
                   </tbody>
@@ -1164,7 +1166,7 @@
 
     createApp({
       setup() {
-        const version = "1.11.0";
+        const version = "1.11.1";
         const currentView = ref('dashboard');
         const loadingAuth = ref(true);
         const loadingData = ref(false);
@@ -1693,10 +1695,6 @@
         const setAttendance = (studentId, status) => { 
           if(practiceForm.attendance[studentId]) {
              practiceForm.attendance[studentId].status = status;
-             if (status === '出席') {
-                 practiceForm.attendance[studentId].reason = '';
-                 practiceForm.attendance[studentId].otherReason = '';
-             }
           }
         };
         
