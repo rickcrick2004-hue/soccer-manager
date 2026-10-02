@@ -45,8 +45,9 @@
     <div v-if="dialogState.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm fade-in p-4">
       <div class="glass-panel p-6 rounded-2xl shadow-2xl border border-slate-600 max-w-sm w-full text-center">
         <p class="text-white text-lg mb-6 whitespace-pre-wrap">{{ dialogState.message }}</p>
+        <input v-if="dialogState.type === 'prompt'" type="text" v-model="dialogState.inputValue" :placeholder="dialogState.placeholder" class="form-input mb-6" autofocus @keyup.enter="handleDialogConfirm">
         <div class="flex justify-center gap-4">
-          <button v-if="dialogState.type === 'confirm'" @click="handleDialogCancel" class="btn-secondary w-24">キャンセル</button>
+          <button v-if="dialogState.type === 'confirm' || dialogState.type === 'prompt'" @click="handleDialogCancel" class="btn-secondary w-24">キャンセル</button>
           <button @click="handleDialogConfirm" class="btn-primary w-24">OK</button>
         </div>
       </div>
@@ -560,6 +561,12 @@
                      <div class="text-xl font-bold text-amber-400 truncate">{{ m.opponent || '未設定' }}</div>
                    </div>
                  </div>
+                 <!-- スタッツサマリー -->
+                 <div v-if="m.quickRecordStats && Object.keys(m.quickRecordStats).length > 0" class="bg-slate-900 px-5 py-2 flex justify-center gap-6 text-xs font-mono border-t border-slate-700/50">
+                   <div class="text-slate-400">シュート: <span class="text-emerald-400 font-bold">{{ getTeamStats(m).us.totalShots }}</span> - <span class="text-red-400 font-bold">{{ getTeamStats(m).them.totalShots }}</span></div>
+                   <div class="text-slate-400">CK: <span class="text-emerald-400 font-bold">{{ getTeamStats(m).us.ck }}</span> - <span class="text-red-400 font-bold">{{ getTeamStats(m).them.ck }}</span></div>
+                   <div class="text-slate-400">FK: <span class="text-emerald-400 font-bold">{{ getTeamStats(m).us.fk }}</span> - <span class="text-red-400 font-bold">{{ getTeamStats(m).them.fk }}</span></div>
+                 </div>
                  <!-- 試合詳細・感想プレビュー -->
                  <div v-if="m.scorers || m.overallComment" class="bg-slate-900/50 px-5 py-3 border-t border-slate-700/50 text-sm">
                    <div v-if="m.scorers" class="mb-2 p-2 bg-slate-900/80 rounded border border-slate-700/50 space-y-0.5 text-xs font-mono">
@@ -641,14 +648,15 @@
                 <!-- アクション選択 -->
                 <div>
                   <label class="block text-sm font-bold text-slate-300 mb-2">2. アクションを選択</label>
-                  <div class="grid grid-cols-3 gap-2">
-                    <button type="button" @click="addQuickRecordAction('得点')" class="bg-emerald-600 text-white border border-emerald-500 py-3 rounded-lg hover:bg-emerald-500 transition font-bold active:scale-95 shadow-lg shadow-emerald-600/30">得点</button>
-                    <button type="button" @click="addQuickRecordAction('アシスト')" class="bg-blue-600/20 text-blue-400 border border-blue-500/30 py-3 rounded-lg hover:bg-blue-600/40 transition font-bold active:scale-95 shadow">アシスト</button>
-                    <button type="button" @click="addQuickRecordAction('シュート')" class="bg-slate-700 text-slate-200 border border-slate-600 py-3 rounded-lg hover:bg-slate-600 transition font-bold active:scale-95 shadow">シュート</button>
-                    <button type="button" @click="addQuickRecordAction('CK')" class="bg-purple-600/20 text-purple-400 border border-purple-500/30 py-3 rounded-lg hover:bg-purple-600/40 transition font-bold active:scale-95 shadow">CK</button>
-                    <button type="button" @click="addQuickRecordAction('FK')" class="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 py-3 rounded-lg hover:bg-indigo-600/40 transition font-bold active:scale-95 shadow">FK</button>
-                    <button type="button" @click="addQuickRecordAction('警告')" class="bg-amber-500/20 text-amber-400 border border-amber-500/30 py-3 rounded-lg hover:bg-amber-500/40 transition font-bold active:scale-95 shadow">警告</button>
-                    <button type="button" @click="openSubSelection()" class="col-span-3 bg-slate-800 text-slate-300 border border-slate-600 py-2.5 rounded-lg hover:bg-slate-700 transition font-bold active:scale-95 shadow flex items-center justify-center mt-1">
+                  <div class="grid grid-cols-4 gap-2">
+                    <button type="button" @click="addQuickRecordAction('得点')" class="col-span-2 bg-emerald-600 text-white border border-emerald-500 py-3 rounded-lg hover:bg-emerald-500 transition font-bold active:scale-95 shadow-lg shadow-emerald-600/30">得点</button>
+                    <button type="button" @click="addQuickRecordAction('アシスト')" class="col-span-2 bg-blue-600/20 text-blue-400 border border-blue-500/30 py-3 rounded-lg hover:bg-blue-600/40 transition font-bold active:scale-95 shadow">アシスト</button>
+                    <button type="button" @click="addQuickRecordAction('枠内シュート')" class="col-span-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 py-3 rounded-lg hover:bg-emerald-500/40 transition font-bold active:scale-95 shadow text-sm">枠内シュート</button>
+                    <button type="button" @click="addQuickRecordAction('枠外シュート')" class="col-span-2 bg-slate-700 text-slate-300 border border-slate-600 py-3 rounded-lg hover:bg-slate-600 transition font-bold active:scale-95 shadow text-sm">枠外シュート</button>
+                    <button type="button" @click="addQuickRecordAction('CK')" class="col-span-1 bg-purple-600/20 text-purple-400 border border-purple-500/30 py-3 rounded-lg hover:bg-purple-600/40 transition font-bold active:scale-95 shadow text-sm">CK</button>
+                    <button type="button" @click="addQuickRecordAction('FK')" class="col-span-1 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 py-3 rounded-lg hover:bg-indigo-600/40 transition font-bold active:scale-95 shadow text-sm">FK</button>
+                    <button type="button" @click="addQuickRecordAction('警告')" class="col-span-2 bg-amber-500/20 text-amber-400 border border-amber-500/30 py-3 rounded-lg hover:bg-amber-500/40 transition font-bold active:scale-95 shadow">警告</button>
+                    <button type="button" @click="openSubSelection()" class="col-span-4 bg-slate-800 text-slate-300 border border-slate-600 py-2.5 rounded-lg hover:bg-slate-700 transition font-bold active:scale-95 shadow flex items-center justify-center mt-1">
                       <i class="fa-solid fa-right-left mr-2"></i>交代OUT (選手とフォーメーション入れ替え)
                     </button>
                   </div>
@@ -671,11 +679,71 @@
                 </div>
               </div>
               
+              <!-- TEAM STATS -->
+              <div v-if="matchForm.quickRecordStats && Object.keys(matchForm.quickRecordStats).length > 0" class="mb-8 p-5 bg-slate-900/80 rounded-xl border border-slate-700 shadow-sm">
+                <h4 class="text-center font-bold text-white mb-6 flex justify-center items-center gap-4">
+                  <span class="text-emerald-400 border-b-2 border-emerald-500 pb-1 w-20 text-center">自チーム</span>
+                  <span class="text-slate-500 text-sm"><i class="fa-solid fa-chart-simple mr-2"></i>TEAM STATS</span>
+                  <span class="text-red-400 border-b-2 border-red-500 pb-1 w-20 text-center">相 手</span>
+                </h4>
+                <div class="space-y-5 px-2 md:px-8">
+                  <!-- シュート -->
+                  <div class="flex flex-col">
+                    <div class="flex justify-between text-sm font-bold mb-1.5 items-end">
+                      <span class="text-emerald-400 text-lg w-16 text-right">{{ getTeamStats(matchForm).us.totalShots }} <span class="text-[10px] font-normal text-slate-400 block -mt-1">(枠内 {{ getTeamStats(matchForm).us.shotsOnTarget }})</span></span>
+                      <span class="text-slate-300 mb-1">シュート</span>
+                      <span class="text-red-400 text-lg w-16 text-left">{{ getTeamStats(matchForm).them.totalShots }} <span class="text-[10px] font-normal text-slate-400 block -mt-1">(枠内 {{ getTeamStats(matchForm).them.shotsOnTarget }})</span></span>
+                    </div>
+                    <div class="flex h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div class="bg-emerald-500 transition-all duration-500" :style="{ width: calcStatRatio(getTeamStats(matchForm).us.totalShots, getTeamStats(matchForm).them.totalShots) + '%' }"></div>
+                      <div class="bg-red-500 transition-all duration-500 ml-auto" :style="{ width: calcStatRatio(getTeamStats(matchForm).them.totalShots, getTeamStats(matchForm).us.totalShots) + '%' }"></div>
+                    </div>
+                  </div>
+                  <!-- CK -->
+                  <div class="flex flex-col">
+                    <div class="flex justify-between text-sm font-bold mb-1.5 items-center">
+                      <span class="text-emerald-400 text-base w-12 text-right">{{ getTeamStats(matchForm).us.ck }}</span>
+                      <span class="text-slate-400 text-xs">CK</span>
+                      <span class="text-red-400 text-base w-12 text-left">{{ getTeamStats(matchForm).them.ck }}</span>
+                    </div>
+                    <div class="flex h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div class="bg-emerald-500/70 transition-all duration-500" :style="{ width: calcStatRatio(getTeamStats(matchForm).us.ck, getTeamStats(matchForm).them.ck) + '%' }"></div>
+                      <div class="bg-red-500/70 transition-all duration-500 ml-auto" :style="{ width: calcStatRatio(getTeamStats(matchForm).them.ck, getTeamStats(matchForm).us.ck) + '%' }"></div>
+                    </div>
+                  </div>
+                  <!-- FK -->
+                  <div class="flex flex-col">
+                    <div class="flex justify-between text-sm font-bold mb-1.5 items-center">
+                      <span class="text-emerald-400 text-base w-12 text-right">{{ getTeamStats(matchForm).us.fk }}</span>
+                      <span class="text-slate-400 text-xs">FK</span>
+                      <span class="text-red-400 text-base w-12 text-left">{{ getTeamStats(matchForm).them.fk }}</span>
+                    </div>
+                    <div class="flex h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div class="bg-emerald-500/70 transition-all duration-500" :style="{ width: calcStatRatio(getTeamStats(matchForm).us.fk, getTeamStats(matchForm).them.fk) + '%' }"></div>
+                      <div class="bg-red-500/70 transition-all duration-500 ml-auto" :style="{ width: calcStatRatio(getTeamStats(matchForm).them.fk, getTeamStats(matchForm).us.fk) + '%' }"></div>
+                    </div>
+                  </div>
+                  <!-- 警告 -->
+                  <div class="flex flex-col">
+                    <div class="flex justify-between text-sm font-bold mb-1.5 items-center">
+                      <span class="text-emerald-400 text-base w-12 text-right">{{ getTeamStats(matchForm).us.fouls }}</span>
+                      <span class="text-slate-400 text-xs">警告</span>
+                      <span class="text-red-400 text-base w-12 text-left">{{ getTeamStats(matchForm).them.fouls }}</span>
+                    </div>
+                    <div class="flex h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div class="bg-emerald-500/70 transition-all duration-500" :style="{ width: calcStatRatio(getTeamStats(matchForm).us.fouls, getTeamStats(matchForm).them.fouls) + '%' }"></div>
+                      <div class="bg-red-500/70 transition-all duration-500 ml-auto" :style="{ width: calcStatRatio(getTeamStats(matchForm).them.fouls, getTeamStats(matchForm).us.fouls) + '%' }"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- 個人成績まとめ (ワンタップ記録連動) -->
               <div v-if="matchForm.quickRecordStats && Object.keys(matchForm.quickRecordStats).length > 0" class="mb-6 border border-emerald-500/20 bg-slate-900/50 rounded-xl p-4">
-                <h4 class="text-emerald-400 font-bold mb-3 text-sm flex items-center"><i class="fa-solid fa-chart-pie mr-2"></i>個人成績まとめ <span class="text-xs font-normal text-slate-500 ml-2">(ワンタップ記録分)</span></h4>
+                <h4 class="text-emerald-400 font-bold mb-3 text-sm flex items-center"><i class="fa-solid fa-chart-pie mr-2"></i>個人成績まとめ <span class="text-xs font-normal text-slate-500 ml-2">(自チーム)</span></h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div v-for="(stats, sId) in matchForm.quickRecordStats" :key="sId" class="bg-slate-800/80 p-3 rounded-lg border border-slate-700/50 shadow-sm">
+                  <template v-for="(stats, sId) in matchForm.quickRecordStats" :key="sId">
+                  <div v-if="sId !== 'opponent'" class="bg-slate-800/80 p-3 rounded-lg border border-slate-700/50 shadow-sm">
                      <div class="font-bold text-white mb-2 pb-1 border-b border-slate-700/50 flex justify-between items-center">
                        <span>{{ getStudentName(sId) }}</span>
                      </div>
@@ -684,14 +752,19 @@
                           <i class="fa-solid fa-futbol mr-1.5 opacity-80"></i>得点: {{ stats['得点'] }}
                         </span>
                         <span v-if="stats['アシスト']" class="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-1 rounded font-bold">アシスト: {{ stats['アシスト'] }}</span>
-                        <span v-if="stats['シュート']" class="bg-slate-700 text-slate-300 border border-slate-600 px-2 py-1 rounded">シュート: {{ stats['シュート'] }}</span>
+                        
+                        <span v-if="stats['枠内シュート']" class="bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 px-2 py-1 rounded">枠内シュート: {{ stats['枠内シュート'] }}</span>
+                        <span v-if="stats['枠外シュート']" class="bg-slate-700 text-slate-300 border border-slate-600 px-2 py-1 rounded">枠外シュート: {{ stats['枠外シュート'] }}</span>
+                        <span v-if="stats['シュート']" class="bg-slate-700 text-slate-300 border border-slate-600 px-2 py-1 rounded">シュート(過去分): {{ stats['シュート'] }}</span>
+                        
                         <span v-if="stats['CK']" class="bg-slate-700 text-slate-300 border border-slate-600 px-2 py-1 rounded">CK: {{ stats['CK'] }}</span>
                         <span v-if="stats['FK']" class="bg-slate-700 text-slate-300 border border-slate-600 px-2 py-1 rounded">FK: {{ stats['FK'] }}</span>
                         <template v-for="(count, actionName) in stats" :key="actionName">
-                           <span v-if="!['得点', 'アシスト', 'シュート', 'CK', 'FK'].includes(actionName)" class="bg-slate-800 text-slate-400 border border-slate-700 px-2 py-1 rounded">{{ actionName }}: {{ count }}</span>
+                           <span v-if="!['得点', 'アシスト', 'シュート', '枠内シュート', '枠外シュート', 'CK', 'FK'].includes(actionName)" class="bg-slate-800 text-slate-400 border border-slate-700 px-2 py-1 rounded">{{ actionName }}: {{ count }}</span>
                         </template>
                      </div>
                   </div>
+                  </template>
                 </div>
               </div>
 
@@ -786,7 +859,13 @@
 
               <!-- Opponent Team -->
               <div class="border border-slate-700 rounded-xl p-5 bg-slate-900/30 flex flex-col">
-                <h3 class="text-amber-400 font-bold mb-4 border-b border-slate-700 pb-2"><i class="fa-solid fa-crosshairs mr-2"></i>相手チーム情報</h3>
+                <h3 class="text-amber-400 font-bold mb-4 border-b border-slate-700 pb-2 flex justify-between items-center">
+                  <span><i class="fa-solid fa-crosshairs mr-2"></i>相手チーム情報</span>
+                  <div class="flex gap-2">
+                    <button type="button" @click="saveCurrentOpponentLineup" class="text-xs bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded transition"><i class="fa-solid fa-floppy-disk mr-1"></i>保存</button>
+                    <button type="button" @click="showLoadOpponentLineupModal = true" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition border border-slate-600"><i class="fa-solid fa-folder-open mr-1"></i>読込</button>
+                  </div>
+                </h3>
                 <div class="mb-6 flex gap-4 items-center">
                   <label class="form-label mb-0">システム</label>
                   <select v-model="matchForm.opponentFormation" class="form-input w-48">
@@ -966,6 +1045,28 @@
                  </div>
                </div>
             </div>
+            
+            <!-- 相手スタメン読込モーダル -->
+            <div v-if="showLoadOpponentLineupModal" class="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center backdrop-blur-sm rounded-2xl fade-in p-4">
+               <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col max-h-[80%]">
+                 <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0">
+                   <h4 class="text-white font-bold"><i class="fa-solid fa-folder-open mr-2 text-amber-400"></i>保存済み相手スタメンの読込</h4>
+                   <button type="button" @click="showLoadOpponentLineupModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                 </div>
+                 <div class="overflow-y-auto custom-scrollbar p-2 flex-1">
+                   <div v-if="!settings.savedOpponentLineups || settings.savedOpponentLineups.length === 0" class="text-center py-6 text-slate-500 text-sm">
+                     保存された相手スタメンはありません。
+                   </div>
+                   <div v-for="lu in settings.savedOpponentLineups" :key="lu.id" class="flex items-center justify-between bg-slate-700/50 hover:bg-slate-700 p-3 rounded mb-2 border border-slate-600 transition group">
+                     <div class="flex-1 cursor-pointer" @click="loadOpponentLineup(lu)">
+                       <div class="text-amber-400 font-bold text-sm mb-0.5">{{ lu.name }}</div>
+                       <div class="text-xs text-slate-300">システム: {{ lu.formation }}</div>
+                     </div>
+                     <button type="button" @click="deleteSavedOpponentLineup(lu.id)" class="text-slate-500 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition" title="削除"><i class="fa-solid fa-trash"></i></button>
+                   </div>
+                 </div>
+               </div>
+            </div>
 
           </div>
         </div>
@@ -1109,7 +1210,6 @@
 
     const { createApp, ref, reactive, computed, onMounted } = Vue;
 
-    // --- フォーメーション定義 ---
     const formations = {
       '4-4-2': [
         { id: 'fw1', name: 'FW', top: '15%', left: '35%' }, { id: 'fw2', name: 'FW', top: '15%', left: '65%' },
@@ -1174,11 +1274,12 @@
         let db = null;
         let appId = typeof __app_id !== 'undefined' ? __app_id : 'soccer-manager-final'; 
 
-        // --- STREAMING_CHUNK:Setting up Custom Dialog Methods... ---
         const dialogState = reactive({
           isOpen: false,
           message: '',
-          type: 'alert', // 'alert' | 'confirm'
+          type: 'alert', // 'alert' | 'confirm' | 'prompt'
+          inputValue: '',
+          placeholder: '',
           resolve: null
         });
 
@@ -1197,21 +1298,39 @@
           });
         };
 
+        const showPrompt = (message, defaultValue = '', placeholder = '') => {
+          return new Promise((resolve) => {
+            dialogState.message = message;
+            dialogState.type = 'prompt';
+            dialogState.inputValue = defaultValue;
+            dialogState.placeholder = placeholder;
+            dialogState.resolve = resolve;
+            dialogState.isOpen = true;
+          });
+        };
+
         const handleDialogConfirm = () => {
           dialogState.isOpen = false;
-          if (dialogState.type === 'confirm' && dialogState.resolve) {
-            dialogState.resolve(true);
+          if (dialogState.resolve) {
+            if (dialogState.type === 'prompt') {
+              dialogState.resolve(dialogState.inputValue);
+            } else {
+              dialogState.resolve(true);
+            }
           }
         };
 
         const handleDialogCancel = () => {
           dialogState.isOpen = false;
-          if (dialogState.type === 'confirm' && dialogState.resolve) {
-            dialogState.resolve(false);
+          if (dialogState.resolve) {
+            if (dialogState.type === 'prompt') {
+              dialogState.resolve(null);
+            } else {
+              dialogState.resolve(false);
+            }
           }
         };
 
-        // --- STREAMING_CHUNK:Defining State Variables... ---
         const students = ref([]);
         const practices = ref([]);
         const matches = ref([]);
@@ -1223,7 +1342,8 @@
             { name: '休日(午後)', start: '13:00', end: '16:00' }
           ],
           practiceMenus: ['アップ', 'パスコン', 'シュート', 'ミニゲーム'],
-          savedLineups: [] 
+          savedLineups: [],
+          savedOpponentLineups: []
         });
 
         const studentTab = ref('active');
@@ -1247,7 +1367,6 @@
         const showStudentDetailModal = ref(false);
         const selectedStudentForDetail = ref(null);
 
-        // --- STREAMING_CHUNK:Setting up Match Timer and Quick Record... ---
         const quickRecordState = reactive({ player: null });
         const matchTimer = reactive({ isRunning: false, seconds: 0, period: '前半', intervalId: null });
 
@@ -1295,7 +1414,6 @@
         const getStudentNumber = (id) => { const s = students.value.find(st => st.id === id); return s && s.number ? s.number : ''; };
         const getStudentShortName = (id) => { const s = students.value.find(st => st.id === id); return s ? s.name.split(' ')[0].split('　')[0].substring(0, 4) : ''; };
 
-        // --- STREAMING_CHUNK:Configuring Sub Out and Action Methods... ---
         const activeStudents = computed(() => students.value.filter(s => !s.isGraduated).sort((a,b) => a.grade - b.grade));
         const obStudents = computed(() => students.value.filter(s => s.isGraduated).sort((a,b) => b.grade - a.grade));
         
@@ -1351,15 +1469,21 @@
         const addQuickRecordAction = (action) => {
           if (!quickRecordState.player) { showAlert("先に「1.選手を選択」から選手を選んでください"); return; }
           
+          if (!matchForm.quickRecordStats) matchForm.quickRecordStats = {};
+          if (!matchForm.quickRecordStats[quickRecordState.player]) {
+              matchForm.quickRecordStats[quickRecordState.player] = {};
+          }
+          const pStats = matchForm.quickRecordStats[quickRecordState.player];
+
           if (action === '得点') {
               if (quickRecordState.player === 'opponent') {
                   matchForm.scoreThem++;
               } else {
                   matchForm.scoreUs++;
-                  if (!matchForm.quickRecordStats) matchForm.quickRecordStats = {};
-                  if (!matchForm.quickRecordStats[quickRecordState.player]) matchForm.quickRecordStats[quickRecordState.player] = {};
-                  matchForm.quickRecordStats[quickRecordState.player]['シュート'] = (matchForm.quickRecordStats[quickRecordState.player]['シュート'] || 0) + 1;
               }
+              pStats['枠内シュート'] = (pStats['枠内シュート'] || 0) + 1; // 得点時は枠内シュートも+1
+          } else {
+              pStats[action] = (pStats[action] || 0) + 1;
           }
           
           const timeStr = matchTimer.seconds > 0 ? `${getTimerMinuteStr()} ` : '';
@@ -1367,15 +1491,6 @@
           
           const record = `${timeStr}${playerName} (${action})`;
           matchForm.scorers = matchForm.scorers ? matchForm.scorers + '\n' + record : record;
-
-          if (quickRecordState.player !== 'opponent') {
-              if (!matchForm.quickRecordStats) matchForm.quickRecordStats = {};
-              if (!matchForm.quickRecordStats[quickRecordState.player]) {
-                  matchForm.quickRecordStats[quickRecordState.player] = {};
-              }
-              const pStats = matchForm.quickRecordStats[quickRecordState.player];
-              pStats[action] = (pStats[action] || 0) + 1;
-          }
 
           quickRecordState.player = null; 
         };
@@ -1395,7 +1510,35 @@
           return `<span class="text-slate-300">${safeLine}</span>`;
         };
 
-        // --- STREAMING_CHUNK:Configuring General Helper Methods... ---
+        const getTeamStats = (match) => {
+          const statsUs = { totalShots: 0, shotsOnTarget: 0, ck: 0, fk: 0, fouls: 0 };
+          const statsThem = { totalShots: 0, shotsOnTarget: 0, ck: 0, fk: 0, fouls: 0 };
+
+          if (!match.quickRecordStats) return { us: statsUs, them: statsThem };
+
+          for (const [playerId, stats] of Object.entries(match.quickRecordStats)) {
+            const isOpponent = playerId === 'opponent';
+            const target = isOpponent ? statsThem : statsUs;
+            
+            const onTarget = stats['枠内シュート'] || 0;
+            const offTarget = stats['枠外シュート'] || 0;
+            const legacyShots = stats['シュート'] || 0; // 以前の仕様の互換性用
+            
+            target.shotsOnTarget += onTarget;
+            target.totalShots += onTarget + offTarget + legacyShots;
+            target.ck += stats['CK'] || 0;
+            target.fk += stats['FK'] || 0;
+            target.fouls += stats['警告'] || 0;
+          }
+          return { us: statsUs, them: statsThem };
+        };
+
+        const calcStatRatio = (val1, val2) => {
+          const total = val1 + val2;
+          if (total === 0) return 0;
+          return (val1 / total) * 100;
+        };
+
         const customFirebaseEnabled = ref(false);
         const firebaseConfigInput = ref('');
 
@@ -1488,7 +1631,6 @@
           return formations[matchForm.opponentFormation].map(pos => ({ ...pos, top: `calc(100% - ${pos.top})`, left: `calc(100% - ${pos.left})` }));
         });
 
-        // --- STREAMING_CHUNK:Configuring Firebase and Data Loading... ---
         onMounted(() => {
           const storedConfig = localStorage.getItem('soccer_mgr_firebase_config');
           if (storedConfig) { firebaseConfigInput.value = storedConfig; }
@@ -1543,6 +1685,7 @@
                if(settingsDoc) {
                  const savedSettings = settingsDoc.data();
                  if(!savedSettings.savedLineups) savedSettings.savedLineups = [];
+                 if(!savedSettings.savedOpponentLineups) savedSettings.savedOpponentLineups = [];
                  if(!savedSettings.timePatterns) {
                    savedSettings.timePatterns = [
                      { name: '平日', start: '16:00', end: '18:30' },
@@ -1566,7 +1709,6 @@
           try { await deleteDoc(getPublicDoc(colName, id)); } catch (e) {}
         };
 
-        // --- STREAMING_CHUNK:Configuring Form and Action Methods... ---
         const sortBy = (key) => { if (sortConfig.key === key) { sortConfig.order = sortConfig.order === 'asc' ? 'desc' : 'asc'; } else { sortConfig.key = key; sortConfig.order = 'asc'; } };
         const resetSort = () => { sortConfig.key = null; sortConfig.order = 'asc'; };
         const downloadCSVTemplate = () => {
@@ -1763,10 +1905,14 @@
         const removeStudentFromMatch = (studentId) => { delete matchForm.studentComments[studentId]; for (const posId in matchForm.lineup) { if (matchForm.lineup[posId] === studentId) delete matchForm.lineup[posId]; } };
         
         const saveCurrentLineup = async () => {
-          const name = `保存したスタメン (${new Date().toLocaleTimeString().slice(0,5)})`;
+          const defaultName = `保存したスタメン (${new Date().toLocaleTimeString().slice(0,5)})`;
+          const name = await showPrompt("自チームフォーメーションの保存名を入力してください", defaultName);
+          if (name === null) return;
+          const finalName = name.trim() || defaultName;
+
           if (!settings.savedLineups) settings.savedLineups = [];
-          settings.savedLineups.push({ id: crypto.randomUUID(), name: name, formation: matchForm.formation, lineup: JSON.parse(JSON.stringify(matchForm.lineup)) });
-          saveSettings(); showAlert("現在のスタメンを保存しました！");
+          settings.savedLineups.push({ id: crypto.randomUUID(), name: finalName, formation: matchForm.formation, lineup: JSON.parse(JSON.stringify(matchForm.lineup)) });
+          saveSettings(); showAlert("スタメンを保存しました！");
         };
         const loadLineup = async (lu) => {
           const confirmed = await showConfirm(`「${lu.name}」を読み込みますか？`);
@@ -1795,6 +1941,38 @@
         const removeOpponentPlayerForPositionFromList = (posId) => { delete matchForm.opponentLineup[posId]; };
         const addOpponentPlayer = () => { matchForm.opponentPlayers.push({ number: '', name: '', features: '' }); };
         const removeOpponentPlayer = (index) => { matchForm.opponentPlayers.splice(index, 1); };
+
+        const showLoadOpponentLineupModal = ref(false);
+        const saveCurrentOpponentLineup = async () => {
+          const defaultName = `相手スタメン (${new Date().toLocaleTimeString().slice(0,5)})`;
+          const name = await showPrompt("相手フォーメーションの保存名を入力してください", defaultName);
+          if (name === null) return;
+          const finalName = name.trim() || defaultName;
+
+          if (!settings.savedOpponentLineups) settings.savedOpponentLineups = [];
+          settings.savedOpponentLineups.push({ 
+            id: crypto.randomUUID(), 
+            name: finalName, 
+            formation: matchForm.opponentFormation, 
+            lineup: JSON.parse(JSON.stringify(matchForm.opponentLineup)),
+            players: JSON.parse(JSON.stringify(matchForm.opponentPlayers || []))
+          });
+          saveSettings(); showAlert("相手フォーメーションを保存しました！");
+        };
+        const loadOpponentLineup = async (lu) => {
+          const confirmed = await showConfirm(`「${lu.name}」を読み込みますか？`);
+          if (!confirmed) return;
+          matchForm.opponentFormation = lu.formation; 
+          matchForm.opponentLineup = JSON.parse(JSON.stringify(lu.lineup));
+          matchForm.opponentPlayers = lu.players ? JSON.parse(JSON.stringify(lu.players)) : [];
+          showLoadOpponentLineupModal.value = false;
+        };
+        const deleteSavedOpponentLineup = async (id) => { 
+          const confirmed = await showConfirm("削除しますか？");
+          if(!confirmed) return; 
+          settings.savedOpponentLineups = settings.savedOpponentLineups.filter(lu => lu.id !== id); saveSettings(); 
+        };
+
         const saveMatch = async () => {
           const isNew = !matchForm.id; if (isNew) matchForm.id = crypto.randomUUID();
           const dataToSave = JSON.parse(JSON.stringify(matchForm));
@@ -1864,6 +2042,7 @@
                 if(data.students) students.value = data.students; if(data.practices) practices.value = data.practices; if(data.matches) matches.value = data.matches; if(data.memos) memos.value = data.memos;
                 if(data.settings) { 
                    if(!data.settings.savedLineups) data.settings.savedLineups = []; 
+                   if(!data.settings.savedOpponentLineups) data.settings.savedOpponentLineups = []; 
                    if(!data.settings.timePatterns) {
                      data.settings.timePatterns = [
                        { name: '平日', start: '16:00', end: '18:30' },
@@ -1889,7 +2068,6 @@
           processImport();
         };
 
-        // --- STREAMING_CHUNK:Returning Component Scope Variables... ---
         return {
           version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
           dialogState, handleDialogConfirm, handleDialogCancel,
@@ -1899,11 +2077,12 @@
           getWeekday, autoSetHoliday, formatDate,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, 
           addTimePattern, removeTimePattern, addPracticeMenu, removePracticeMenu, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
-          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup,
+          matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup, showLoadOpponentLineupModal, saveCurrentOpponentLineup, loadOpponentLineup, deleteSavedOpponentLineup,
           quickRecordState, matchTimer, toggleMatchTimer, resetTimer, formatTimer, setQuickRecordPlayer, addQuickRecordAction, resetQuickRecord, formatTimelineLine,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
           settings, newMenuName, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON,
-          availableStudentsForLineup, isSelectingSubForQuickRecord, subbingOutPlayerId, openSubSelection, confirmSubstitution
+          availableStudentsForLineup, isSelectingSubForQuickRecord, subbingOutPlayerId, openSubSelection, confirmSubstitution,
+          getTeamStats, calcStatRatio
         };
       }
     }).mount('#app');
