@@ -84,6 +84,10 @@
             <i class="fa-solid fa-trophy w-6 text-center"></i>
             <span class="hidden md:block ml-3 font-medium">試合記録</span>
           </button>
+          <button @click="currentView = 'analysis'" :class="['nav-btn', currentView === 'analysis' ? 'active' : '']">
+            <i class="fa-solid fa-magnifying-glass-chart w-6 text-center"></i>
+            <span class="hidden md:block ml-3 font-medium">他チーム分析</span>
+          </button>
           <button @click="currentView = 'memo'" :class="['nav-btn', currentView === 'memo' ? 'active' : '']">
             <i class="fa-solid fa-note-sticky w-6 text-center"></i>
             <span class="hidden md:block ml-3 font-medium">メモ</span>
@@ -1091,6 +1095,267 @@
           </div>
         </div>
 
+        <!-- ANALYSIS VIEW (他チーム分析) -->
+        <div v-if="currentView === 'analysis'" class="space-y-6 fade-in">
+          <!-- List Mode -->
+          <div v-if="!isEditingAnalysis">
+            <div class="flex justify-between items-center mb-6">
+              <h2 class="text-xl font-bold text-white">他チーム分析記録一覧</h2>
+              <button @click="openAnalysisForm()" class="btn-primary bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/30"><i class="fa-solid fa-plus mr-2"></i>新規記録</button>
+            </div>
+            <div class="grid gap-4">
+               <div v-if="sortedAnalyses.length === 0" class="glass-panel p-8 text-center text-slate-500 rounded-2xl">記録がありません</div>
+               <div v-for="a in sortedAnalyses" :key="a.id" class="glass-panel rounded-xl p-0 overflow-hidden hover:border-indigo-500/50 transition cursor-pointer border border-transparent" @click="editAnalysis(a)">
+                 <div class="bg-slate-800/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
+                   <div class="flex items-center gap-3">
+                     <span class="bg-indigo-500/20 text-indigo-400 font-mono px-2 py-1 rounded text-sm font-bold flex items-center gap-1">{{ a.date }} <span class="text-xs font-normal">({{ getWeekday(a.date) }})</span></span>
+                     <span class="text-slate-300 font-medium border border-slate-600 px-2 py-0.5 rounded text-xs">
+                       {{ a.matchType }}
+                       <template v-if="a.matchType === '公式戦' && a.tournamentName"> - {{ a.tournamentName }}</template>
+                     </span>
+                   </div>
+                   <div class="text-slate-400 text-sm"><i class="fa-solid fa-location-dot mr-1"></i>{{ a.location }}</div>
+                 </div>
+                 <div class="p-6 flex items-center justify-center gap-6 md:gap-12 bg-gradient-to-b from-slate-800/30 to-transparent">
+                   <div class="text-center w-24 md:w-32">
+                     <div class="text-xl font-bold text-blue-400 truncate">{{ a.teamA.name || 'チームA' }}</div>
+                   </div>
+                   <div class="flex items-center gap-3 md:gap-6">
+                     <div class="text-3xl md:text-5xl font-black text-white">{{ a.teamA.score }}</div>
+                     <div class="text-slate-600 font-bold text-xl">-</div>
+                     <div class="text-3xl md:text-5xl font-black text-white">{{ a.teamB.score }}</div>
+                   </div>
+                   <div class="text-center w-24 md:w-32">
+                     <div class="text-xl font-bold text-rose-400 truncate">{{ a.teamB.name || 'チームB' }}</div>
+                   </div>
+                 </div>
+                 <!-- 試合詳細・感想プレビュー -->
+                 <div v-if="a.overallComment" class="bg-slate-900/50 px-5 py-3 border-t border-slate-700/50 text-sm">
+                   <div class="text-slate-400 line-clamp-2 leading-relaxed"><i class="fa-solid fa-comment-dots mr-2 text-slate-500"></i>{{ a.overallComment }}</div>
+                 </div>
+               </div>
+            </div>
+          </div>
+
+          <!-- Form Mode -->
+          <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative">
+            <button type="button" @click="cancelAnalysisEdit" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <h2 class="text-2xl font-bold text-white mb-6 border-b border-slate-700 pb-4"><span class="text-indigo-500 mr-2">|</span>{{ analysisForm.id ? '分析記録の編集' : '新規分析記録' }}</h2>
+            
+            <!-- Basic Info -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div>
+                <label class="form-label">種別</label>
+                <select v-model="analysisForm.matchType" class="form-input"><option>練習試合</option><option>公式戦</option><option>その他</option></select>
+              </div>
+              <div v-if="analysisForm.matchType === '公式戦'" class="md:col-span-2 lg:col-span-1 fade-in">
+                <label class="form-label text-indigo-400">大会名</label>
+                <input type="text" v-model="analysisForm.tournamentName" class="form-input border-indigo-500/50 focus:border-indigo-500 bg-indigo-900/10" placeholder="例: インターハイ予選">
+              </div>
+              <div><label class="form-label">日付</label><input type="date" v-model="analysisForm.date" class="form-input"></div>
+              <div><label class="form-label">キックオフ</label><input type="time" v-model="analysisForm.time" class="form-input"></div>
+              <div class="md:col-span-2"><label class="form-label">場所</label><input type="text" v-model="analysisForm.location" class="form-input" placeholder="市民グラウンド"></div>
+              <div><label class="form-label">天気</label><select v-model="analysisForm.weather" class="form-input"><option>晴れ</option><option>曇り</option><option>雨</option><option>雪</option></select></div>
+            </div>
+
+            <!-- Result -->
+            <div class="glass-panel bg-slate-800/50 rounded-xl p-6 mb-8 border border-slate-700 shadow-inner">
+              <h3 class="text-lg font-bold text-white mb-4 text-center">試合結果</h3>
+              <div class="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-8 mb-4">
+                <div class="flex flex-col items-center w-full md:w-auto">
+                  <input type="text" v-model="analysisForm.teamA.name" class="form-input text-center font-bold text-blue-400 mb-2 w-48 border-blue-500/30" placeholder="チームA">
+                  <input type="number" min="0" v-model="analysisForm.teamA.score" class="w-24 text-center text-4xl font-bold bg-slate-900 border-none rounded-xl p-2 text-white shadow-inner">
+                </div>
+                <div class="text-4xl font-black text-slate-600 hidden md:block">-</div>
+                <div class="flex flex-col items-center w-full md:w-auto mt-4 md:mt-0">
+                  <input type="text" v-model="analysisForm.teamB.name" class="form-input text-center font-bold text-rose-400 mb-2 w-48 border-rose-500/30" placeholder="チームB">
+                  <input type="number" min="0" v-model="analysisForm.teamB.score" class="w-24 text-center text-4xl font-bold bg-slate-900 border-none rounded-xl p-2 text-white shadow-inner">
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              <!-- Team A Formation -->
+              <div class="border border-blue-500/30 rounded-xl p-5 bg-blue-900/10 flex flex-col">
+                <h3 class="text-blue-400 font-bold mb-4 border-b border-blue-500/30 pb-2"><i class="fa-solid fa-users mr-2"></i>{{ analysisForm.teamA.name || 'チームA' }}</h3>
+                <div class="mb-6 flex gap-4 items-center">
+                  <label class="form-label mb-0">システム</label>
+                  <select v-model="analysisForm.teamA.formation" class="form-input w-48 border-blue-500/30">
+                    <option value="4-4-2">4-4-2</option>
+                    <option value="4-2-3-1">4-2-3-1</option>
+                    <option value="4-3-3">4-3-3</option>
+                    <option value="3-5-2">3-5-2</option>
+                    <option value="3-4-3">3-4-3</option>
+                    <option value="5-2-3">5-2-3</option>
+                    <option value="5-3-2">5-3-2</option>
+                    <option value="5-1-3-1">5-1-3-1</option>
+                    <option value="フリー">フリー (手動入力)</option>
+                  </select>
+                </div>
+
+                <!-- Team A ピッチUI -->
+                <div v-if="analysisForm.teamA.formation !== 'フリー'" class="relative w-full max-w-[300px] mx-auto aspect-[2/3] bg-blue-900/40 border-[3px] border-white/60 rounded-sm mb-8 shadow-inner overflow-hidden select-none" style="background-image: repeating-linear-gradient(0deg, transparent, transparent 10%, rgba(255,255,255,0.05) 10%, rgba(255,255,255,0.05) 20%);">
+                  <div class="absolute top-1/2 left-0 w-full h-[2px] bg-white/60 -translate-y-1/2"></div>
+                  <div class="absolute top-1/2 left-1/2 w-16 h-16 border-[2px] border-white/60 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                  <div class="absolute top-0 left-1/2 w-32 h-12 border-[2px] border-t-0 border-white/60 -translate-x-1/2"></div>
+                  <div class="absolute bottom-0 left-1/2 w-32 h-12 border-[2px] border-b-0 border-white/60 -translate-x-1/2"></div>
+                  
+                  <div v-for="pos in currentTeamAFormationPositions" :key="pos.id" 
+                       class="absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer group"
+                       :style="{ top: pos.top, left: pos.left }"
+                       @click="openAnalysisPlayerSelect('A', pos.id)">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-lg font-bold group-hover:scale-110 transition z-10 border-2"
+                         :class="analysisForm.teamA.lineup[pos.id] ? 'bg-blue-600 text-white border-white' : 'bg-slate-800/90 text-slate-300 border-slate-400 border-dashed'">
+                      {{ analysisForm.teamA.lineup[pos.id] ? (analysisForm.teamA.lineup[pos.id].number || '●') : pos.name }}
+                    </div>
+                    <div class="text-[10px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded mt-1 truncate max-w-[50px] text-center shadow whitespace-nowrap">
+                      {{ analysisForm.teamA.lineup[pos.id] && analysisForm.teamA.lineup[pos.id].name ? analysisForm.teamA.lineup[pos.id].name : pos.name }}
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="mb-6">
+                  <label class="form-label text-xs">フォーメーション名</label>
+                  <input type="text" v-model="analysisForm.teamA.customFormation" class="form-input border-blue-500/30" placeholder="例: 4-4-2 (フラット)">
+                </div>
+
+                <div class="mt-auto">
+                  <label class="form-label">要注意選手・特徴リスト</label>
+                  <div class="space-y-2 mb-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                     <div v-for="(p, posId) in analysisForm.teamA.lineup" :key="posId" class="flex gap-2 items-start bg-slate-800/80 p-2 rounded border-l-2 border-blue-500">
+                        <span class="w-10 text-[10px] text-blue-400 font-bold flex items-center justify-center bg-slate-900 rounded shrink-0">{{ getPositionName(posId) }}</span>
+                        <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
+                        <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
+                        <input type="text" v-model="p.features" placeholder="特徴 (足が速い等)" class="flex-1 form-input text-xs py-1 px-2">
+                        <button type="button" @click="removeAnalysisPlayerForPositionFromList('A', posId)" class="text-slate-500 hover:text-red-400 p-1 shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                     </div>
+                     <div v-for="(p, index) in analysisForm.teamA.players" :key="'A-other-'+index" class="flex gap-2 items-start bg-slate-800 p-2 rounded border border-slate-700/50">
+                        <span class="w-10 text-[10px] text-slate-400 font-bold flex items-center justify-center bg-slate-900 rounded shrink-0">控え等</span>
+                        <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
+                        <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
+                        <input type="text" v-model="p.features" placeholder="特徴" class="flex-1 form-input text-xs py-1 px-2">
+                        <button type="button" @click="removeAnalysisPlayer('A', index)" class="text-red-400 hover:text-red-300 p-1 shrink-0"><i class="fa-solid fa-trash"></i></button>
+                     </div>
+                  </div>
+                  <button type="button" @click="addAnalysisPlayer('A')" class="text-xs text-blue-400 border border-blue-400/30 px-3 py-1 rounded hover:bg-blue-400/10 w-full transition"><i class="fa-solid fa-plus mr-1"></i>スタメン以外の選手を追加</button>
+                </div>
+              </div>
+
+              <!-- Team B Formation -->
+              <div class="border border-rose-500/30 rounded-xl p-5 bg-rose-900/10 flex flex-col">
+                <h3 class="text-rose-400 font-bold mb-4 border-b border-rose-500/30 pb-2"><i class="fa-solid fa-users mr-2"></i>{{ analysisForm.teamB.name || 'チームB' }}</h3>
+                <div class="mb-6 flex gap-4 items-center">
+                  <label class="form-label mb-0">システム</label>
+                  <select v-model="analysisForm.teamB.formation" class="form-input w-48 border-rose-500/30">
+                    <option value="4-4-2">4-4-2</option>
+                    <option value="4-2-3-1">4-2-3-1</option>
+                    <option value="4-3-3">4-3-3</option>
+                    <option value="3-5-2">3-5-2</option>
+                    <option value="3-4-3">3-4-3</option>
+                    <option value="5-2-3">5-2-3</option>
+                    <option value="5-3-2">5-3-2</option>
+                    <option value="5-1-3-1">5-1-3-1</option>
+                    <option value="フリー">フリー (手動入力)</option>
+                  </select>
+                </div>
+
+                <!-- Team B ピッチUI (反転表示) -->
+                <div v-if="analysisForm.teamB.formation !== 'フリー'" class="relative w-full max-w-[300px] mx-auto aspect-[2/3] bg-rose-900/40 border-[3px] border-white/60 rounded-sm mb-8 shadow-inner overflow-hidden select-none" style="background-image: repeating-linear-gradient(0deg, transparent, transparent 10%, rgba(255,255,255,0.05) 10%, rgba(255,255,255,0.05) 20%);">
+                  <div class="absolute top-1/2 left-0 w-full h-[2px] bg-white/60 -translate-y-1/2"></div>
+                  <div class="absolute top-1/2 left-1/2 w-16 h-16 border-[2px] border-white/60 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                  <div class="absolute top-0 left-1/2 w-32 h-12 border-[2px] border-t-0 border-white/60 -translate-x-1/2"></div>
+                  <div class="absolute bottom-0 left-1/2 w-32 h-12 border-[2px] border-b-0 border-white/60 -translate-x-1/2"></div>
+                  
+                  <div v-for="pos in currentTeamBFormationPositions" :key="pos.id" 
+                       class="absolute w-12 h-12 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer group"
+                       :style="{ top: pos.top, left: pos.left }"
+                       @click="openAnalysisPlayerSelect('B', pos.id)">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-lg font-bold group-hover:scale-110 transition z-10 border-2"
+                         :class="analysisForm.teamB.lineup[pos.id] ? 'bg-rose-600 text-white border-white' : 'bg-slate-800/90 text-slate-300 border-slate-400 border-dashed'">
+                      {{ analysisForm.teamB.lineup[pos.id] ? (analysisForm.teamB.lineup[pos.id].number || '●') : pos.name }}
+                    </div>
+                    <div class="text-[10px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded mt-1 truncate max-w-[50px] text-center shadow whitespace-nowrap">
+                      {{ analysisForm.teamB.lineup[pos.id] && analysisForm.teamB.lineup[pos.id].name ? analysisForm.teamB.lineup[pos.id].name : pos.name }}
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="mb-6">
+                  <label class="form-label text-xs">フォーメーション名</label>
+                  <input type="text" v-model="analysisForm.teamB.customFormation" class="form-input border-rose-500/30" placeholder="例: 4-4-2 (フラット)">
+                </div>
+
+                <div class="mt-auto">
+                  <label class="form-label">要注意選手・特徴リスト</label>
+                  <div class="space-y-2 mb-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                     <div v-for="(p, posId) in analysisForm.teamB.lineup" :key="posId" class="flex gap-2 items-start bg-slate-800/80 p-2 rounded border-l-2 border-rose-500">
+                        <span class="w-10 text-[10px] text-rose-400 font-bold flex items-center justify-center bg-slate-900 rounded shrink-0">{{ getPositionName(posId) }}</span>
+                        <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
+                        <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
+                        <input type="text" v-model="p.features" placeholder="特徴 (足が速い等)" class="flex-1 form-input text-xs py-1 px-2">
+                        <button type="button" @click="removeAnalysisPlayerForPositionFromList('B', posId)" class="text-slate-500 hover:text-red-400 p-1 shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                     </div>
+                     <div v-for="(p, index) in analysisForm.teamB.players" :key="'B-other-'+index" class="flex gap-2 items-start bg-slate-800 p-2 rounded border border-slate-700/50">
+                        <span class="w-10 text-[10px] text-slate-400 font-bold flex items-center justify-center bg-slate-900 rounded shrink-0">控え等</span>
+                        <input type="text" v-model="p.number" placeholder="No." class="w-12 form-input text-xs py-1 px-1 text-center shrink-0">
+                        <input type="text" v-model="p.name" placeholder="名前" class="w-20 form-input text-xs py-1 px-2 shrink-0">
+                        <input type="text" v-model="p.features" placeholder="特徴" class="flex-1 form-input text-xs py-1 px-2">
+                        <button type="button" @click="removeAnalysisPlayer('B', index)" class="text-red-400 hover:text-red-300 p-1 shrink-0"><i class="fa-solid fa-trash"></i></button>
+                     </div>
+                  </div>
+                  <button type="button" @click="addAnalysisPlayer('B')" class="text-xs text-rose-400 border border-rose-400/30 px-3 py-1 rounded hover:bg-rose-400/10 w-full transition"><i class="fa-solid fa-plus mr-1"></i>スタメン以外の選手を追加</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-8 border-t border-slate-700 pt-6">
+              <label class="form-label"><i class="fa-solid fa-comment-dots mr-2"></i>タイムライン・全体的な分析メモ</label>
+              <textarea v-model="analysisForm.timeline" rows="6" class="form-input resize-y font-mono text-sm leading-relaxed" placeholder="前半10分：チームAの10番がドリブル突破からシュート...&#10;両チームの特徴や自チームと対戦した場合の対策などを記録..."></textarea>
+            </div>
+
+            <div class="flex justify-between items-center border-t border-slate-700 pt-6">
+              <button type="button" v-if="analysisForm.id" @click="deleteAnalysis(analysisForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
+              <div v-else></div>
+              <div class="flex space-x-3">
+                <button type="button" @click="cancelAnalysisEdit" class="btn-secondary">キャンセル</button>
+                <button type="button" @click="saveAnalysis" class="btn-primary shadow-lg shadow-indigo-500/30 w-32 bg-indigo-600 hover:bg-indigo-500"><i class="fa-solid fa-check mr-2"></i>保存</button>
+              </div>
+            </div>
+            
+            <!-- 分析用選手入力モーダル -->
+            <div v-if="isSelectingAnalysisPlayer" class="absolute inset-0 bg-slate-900/80 z-20 flex items-center justify-center backdrop-blur-sm rounded-2xl fade-in p-4">
+               <div class="bg-slate-800 border border-slate-600 rounded-xl w-full max-w-sm overflow-hidden shadow-2xl">
+                 <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+                   <h4 class="text-white font-bold"><span :class="analysisTargetTeam === 'A' ? 'text-blue-400' : 'text-rose-400'" class="mr-1">{{ getPositionName(analysisTargetPosId) }}</span>の選手を登録</h4>
+                   <button type="button" @click="isSelectingAnalysisPlayer = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                 </div>
+                 <div class="p-4 space-y-4">
+                   <div class="flex gap-4">
+                     <div class="w-20">
+                       <label class="block text-xs text-slate-400 mb-1">背番号</label>
+                       <input type="text" v-model="analysisPlayerForm.number" class="form-input text-center" autofocus>
+                     </div>
+                     <div class="flex-1">
+                       <label class="block text-xs text-slate-400 mb-1">名前 (わかる場合)</label>
+                       <input type="text" v-model="analysisPlayerForm.name" class="form-input">
+                     </div>
+                   </div>
+                   <div>
+                     <label class="block text-xs text-slate-400 mb-1">特徴 (プレースタイル・利き足など)</label>
+                     <input type="text" v-model="analysisPlayerForm.features" class="form-input" @keyup.enter="saveAnalysisPlayerForPosition">
+                   </div>
+                   
+                   <div class="flex justify-between pt-2">
+                     <button type="button" @click="removeAnalysisPlayerForPosition" class="text-red-400 hover:text-red-300 text-sm py-2 px-3 transition"><i class="fa-solid fa-eraser mr-1"></i>配置解除</button>
+                     <button type="button" @click="saveAnalysisPlayerForPosition" :class="analysisTargetTeam === 'A' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20' : 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/20'" class="text-white px-6 py-2 rounded-lg font-medium transition shadow-lg">決定</button>
+                   </div>
+                 </div>
+               </div>
+            </div>
+
+          </div>
+        </div>
+
         <!-- MEMO VIEW -->
         <div v-if="currentView === 'memo'" class="space-y-6 fade-in flex flex-col h-full">
           <!-- List Mode -->
@@ -1367,6 +1632,7 @@
         const students = ref([]);
         const practices = ref([]);
         const matches = ref([]);
+        const analyses = ref([]);
         const memos = ref([]);
         const settings = reactive({
           timePatterns: [
@@ -1382,6 +1648,7 @@
         const studentTab = ref('active');
         const isEditingPractice = ref(false);
         const isEditingMatch = ref(false);
+        const isEditingAnalysis = ref(false);
         const isEditingMemo = ref(false);
         const newMenuName = ref('');
         const showStudentModal = ref(false);
@@ -1643,11 +1910,19 @@
         const getEmptyMatchForm = () => ({ id: null, matchType: '練習試合', tournamentName: '', date: new Date().toISOString().split('T')[0], time: '10:00', opponent: '', location: '', weather: '晴れ', referee: '', scoreUs: 0, scoreThem: 0, scorers: '', formation: '4-2-3-1', customFormation: '', lineup: {}, opponentFormation: '4-4-2', customOpponentFormation: '', opponentLineup: {}, opponentPlayers: [], studentComments: {}, overallComment: '', quickRecordStats: {} });
         const matchForm = reactive(getEmptyMatchForm());
 
+        const getEmptyAnalysisForm = () => ({
+          id: null, matchType: '公式戦', tournamentName: '', date: new Date().toISOString().split('T')[0], time: '10:00', location: '', weather: '晴れ',
+          teamA: { name: 'チームA', score: 0, formation: '4-4-2', customFormation: '', lineup: {}, players: [] },
+          teamB: { name: 'チームB', score: 0, formation: '4-4-2', customFormation: '', lineup: {}, players: [] },
+          timeline: '', overallComment: ''
+        });
+        const analysisForm = reactive(getEmptyAnalysisForm());
+
         const getEmptyMemoForm = () => ({ id: null, title: '', content: '', updatedAt: null });
         const memoForm = reactive(getEmptyMemoForm());
 
-        const viewTitle = computed(() => ({ dashboard: 'ダッシュボード', students: '名簿・生徒管理', practice: '練習記録', match: '試合記録', memo: 'メモ', settings: '設定・データ' }[currentView.value]));
-        const viewSubtitle = computed(() => ({ dashboard: 'チームの現状を一目で確認', students: '部員の登録・更新・状態管理', practice: '日々の練習メニューと出席状況', match: '対戦結果・フォーメーション分析', memo: '日々の気づきやアイデアを記録', settings: 'アプリの基本設定とバックアップ' }[currentView.value]));
+        const viewTitle = computed(() => ({ dashboard: 'ダッシュボード', students: '名簿・生徒管理', practice: '練習記録', match: '試合記録', analysis: '他チーム分析', memo: 'メモ', settings: '設定・データ' }[currentView.value]));
+        const viewSubtitle = computed(() => ({ dashboard: 'チームの現状を一目で確認', students: '部員の登録・更新・状態管理', practice: '日々の練習メニューと出席状況', match: '対戦結果・フォーメーション分析', analysis: 'ライバルチーム等の試合記録と戦力分析', memo: '日々の気づきやアイデアを記録', settings: 'アプリの基本設定とバックアップ' }[currentView.value]));
 
         const studentStats = computed(() => {
           const stats = {};
@@ -1681,6 +1956,7 @@
         
         const sortedPractices = computed(() => [...practices.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
         const sortedMatches = computed(() => [...matches.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
+        const sortedAnalyses = computed(() => [...analyses.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
         const sortedMemos = computed(() => [...memos.value].sort((a, b) => b.updatedAt - a.updatedAt));
 
         // --- STREAMING_CHUNK:Configuring Draft Auto-save ---
@@ -1692,6 +1968,10 @@
           if (isEditingMatch.value) localStorage.setItem('smgr_draft_match', JSON.stringify(newVal));
         }, { deep: true });
 
+        watch(() => analysisForm, (newVal) => {
+          if (isEditingAnalysis.value) localStorage.setItem('smgr_draft_analysis', JSON.stringify(newVal));
+        }, { deep: true });
+
         watch(() => memoForm, (newVal) => {
           if (isEditingMemo.value) localStorage.setItem('smgr_draft_memo', JSON.stringify(newVal));
         }, { deep: true });
@@ -1699,9 +1979,10 @@
         const checkDrafts = () => {
           const pDraft = localStorage.getItem('smgr_draft_practice');
           const mDraft = localStorage.getItem('smgr_draft_match');
+          const aDraft = localStorage.getItem('smgr_draft_analysis');
           const memoDraft = localStorage.getItem('smgr_draft_memo');
           
-          if (pDraft || mDraft || memoDraft) {
+          if (pDraft || mDraft || aDraft || memoDraft) {
             setTimeout(async () => {
               const res = await showConfirm("保存されていない入力途中のデータがあります。復元して再開しますか？\n（キャンセルすると破棄されます）");
               if (res) {
@@ -1710,6 +1991,11 @@
                   currentView.value = 'match';
                   isEditingMatch.value = true;
                   showToast("試合記録の入力途中のデータを復元しました", "info");
+                } else if (aDraft) {
+                  Object.assign(analysisForm, JSON.parse(aDraft));
+                  currentView.value = 'analysis';
+                  isEditingAnalysis.value = true;
+                  showToast("他チーム分析の入力途中のデータを復元しました", "info");
                 } else if (pDraft) {
                   Object.assign(practiceForm, JSON.parse(pDraft));
                   currentView.value = 'practice';
@@ -1724,6 +2010,7 @@
               } else {
                 localStorage.removeItem('smgr_draft_practice');
                 localStorage.removeItem('smgr_draft_match');
+                localStorage.removeItem('smgr_draft_analysis');
                 localStorage.removeItem('smgr_draft_memo');
               }
             }, 800);
@@ -1734,6 +2021,15 @@
         const currentOpponentFormationPositions = computed(() => {
           if (matchForm.opponentFormation === 'フリー' || !formations[matchForm.opponentFormation]) return [];
           return formations[matchForm.opponentFormation].map(pos => ({ ...pos, top: `calc(100% - ${pos.top})`, left: `calc(100% - ${pos.left})` }));
+        });
+
+        const currentTeamAFormationPositions = computed(() => {
+          if (analysisForm.teamA.formation === 'フリー' || !formations[analysisForm.teamA.formation]) return [];
+          return formations[analysisForm.teamA.formation]; 
+        });
+        const currentTeamBFormationPositions = computed(() => {
+          if (analysisForm.teamB.formation === 'フリー' || !formations[analysisForm.teamB.formation]) return [];
+          return formations[analysisForm.teamB.formation].map(pos => ({ ...pos, top: `calc(100% - ${pos.top})`, left: `calc(100% - ${pos.left})` })); 
         });
 
         onMounted(() => {
@@ -1786,6 +2082,7 @@
             const sSnap = await getDocs(getPublicCollection('students')); students.value = sSnap.docs.map(d => d.data());
             const pSnap = await getDocs(getPublicCollection('practices')); practices.value = pSnap.docs.map(d => d.data());
             const mSnap = await getDocs(getPublicCollection('matches')); matches.value = mSnap.docs.map(d => d.data());
+            const aSnap = await getDocs(getPublicCollection('analyses')); analyses.value = aSnap.docs.map(d => d.data());
             const memoSnap = await getDocs(getPublicCollection('memos')); memos.value = memoSnap.docs.map(d => d.data());
             const setSnap = await getDocs(getPublicCollection('settings'));
             if (!setSnap.empty) {
@@ -1908,6 +2205,7 @@
 
         const cancelPracticeEdit = () => { isEditingPractice.value = false; localStorage.removeItem('smgr_draft_practice'); };
         const cancelMatchEdit = () => { isEditingMatch.value = false; resetQuickRecord(); localStorage.removeItem('smgr_draft_match'); };
+        const cancelAnalysisEdit = () => { isEditingAnalysis.value = false; localStorage.removeItem('smgr_draft_analysis'); };
         const cancelMemoEdit = () => { isEditingMemo.value = false; localStorage.removeItem('smgr_draft_memo'); };
 
         const openPracticeForm = () => {
@@ -2100,6 +2398,69 @@
           if(confirmed) { matches.value = matches.value.filter(m => m.id !== id); cancelMatchEdit(); await deleteFromCloud('matches', id); showToast("試合記録を削除しました", "info"); } 
         };
 
+        const openAnalysisForm = () => { Object.assign(analysisForm, getEmptyAnalysisForm()); isEditingAnalysis.value = true; };
+        const editAnalysis = (a) => { 
+          Object.assign(analysisForm, JSON.parse(JSON.stringify(a))); 
+          if(!analysisForm.teamA.lineup) analysisForm.teamA.lineup = {};
+          if(!analysisForm.teamB.lineup) analysisForm.teamB.lineup = {};
+          isEditingAnalysis.value = true; 
+        };
+        const saveAnalysis = async () => {
+          const isNew = !analysisForm.id; if (isNew) analysisForm.id = crypto.randomUUID();
+          const dataToSave = JSON.parse(JSON.stringify(analysisForm));
+          if (isNew) analyses.value.push(dataToSave); else { const idx = analyses.value.findIndex(a => a.id === dataToSave.id); if(idx !== -1) analyses.value[idx] = dataToSave; }
+          cancelAnalysisEdit(); await saveToCloud('analyses', dataToSave.id, dataToSave); showToast("他チーム分析を保存しました");
+        };
+        const deleteAnalysis = async (id) => { 
+          const confirmed = await showConfirm("削除しますか？");
+          if(confirmed) { analyses.value = analyses.value.filter(a => a.id !== id); cancelAnalysisEdit(); await deleteFromCloud('analyses', id); showToast("他チーム分析を削除しました", "info"); } 
+        };
+
+        // 分析用モーダルロジック
+        const isSelectingAnalysisPlayer = ref(false);
+        const analysisTargetTeam = ref('A');
+        const analysisTargetPosId = ref(null);
+        const analysisPlayerForm = reactive({ number: '', name: '', features: '' });
+
+        const openAnalysisPlayerSelect = (team, posId) => {
+          analysisTargetTeam.value = team;
+          analysisTargetPosId.value = posId;
+          const targetLineup = team === 'A' ? analysisForm.teamA.lineup : analysisForm.teamB.lineup;
+          const current = targetLineup[posId];
+          if (current) Object.assign(analysisPlayerForm, JSON.parse(JSON.stringify(current))); 
+          else Object.assign(analysisPlayerForm, { number: '', name: '', features: '' });
+          isSelectingAnalysisPlayer.value = true;
+        };
+
+        const saveAnalysisPlayerForPosition = () => { 
+          const targetLineup = analysisTargetTeam.value === 'A' ? analysisForm.teamA.lineup : analysisForm.teamB.lineup;
+          targetLineup[analysisTargetPosId.value] = JSON.parse(JSON.stringify(analysisPlayerForm)); 
+          isSelectingAnalysisPlayer.value = false; 
+          analysisTargetPosId.value = null; 
+        };
+        
+        const removeAnalysisPlayerForPosition = () => { 
+          const targetLineup = analysisTargetTeam.value === 'A' ? analysisForm.teamA.lineup : analysisForm.teamB.lineup;
+          delete targetLineup[analysisTargetPosId.value]; 
+          isSelectingAnalysisPlayer.value = false; 
+          analysisTargetPosId.value = null; 
+        };
+
+        const removeAnalysisPlayerForPositionFromList = (team, posId) => { 
+          const targetLineup = team === 'A' ? analysisForm.teamA.lineup : analysisForm.teamB.lineup;
+          delete targetLineup[posId]; 
+        };
+
+        const addAnalysisPlayer = (team) => { 
+          const targetPlayers = team === 'A' ? analysisForm.teamA.players : analysisForm.teamB.players;
+          targetPlayers.push({ number: '', name: '', features: '' }); 
+        };
+
+        const removeAnalysisPlayer = (team, index) => { 
+          const targetPlayers = team === 'A' ? analysisForm.teamA.players : analysisForm.teamB.players;
+          targetPlayers.splice(index, 1); 
+        };
+
         const openMemoForm = () => { Object.assign(memoForm, getEmptyMemoForm()); isEditingMemo.value = true; };
         const editMemo = (m) => { Object.assign(memoForm, JSON.parse(JSON.stringify(m))); isEditingMemo.value = true; };
         const saveMemo = async () => {
@@ -2144,7 +2505,7 @@
         };
         
         const exportJSON = () => {
-          const data = { version, exportDate: new Date().toISOString(), students: students.value, practices: practices.value, matches: matches.value, memos: memos.value, settings };
+          const data = { version, exportDate: new Date().toISOString(), students: students.value, practices: practices.value, matches: matches.value, analyses: analyses.value, memos: memos.value, settings };
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `soccer_team_backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url);
         };
@@ -2158,7 +2519,7 @@
               loadingData.value = true;
               try {
                 const data = JSON.parse(event.target.result);
-                if(data.students) students.value = data.students; if(data.practices) practices.value = data.practices; if(data.matches) matches.value = data.matches; if(data.memos) memos.value = data.memos;
+                if(data.students) students.value = data.students; if(data.practices) practices.value = data.practices; if(data.matches) matches.value = data.matches; if(data.analyses) analyses.value = data.analyses; if(data.memos) memos.value = data.memos;
                 if(data.settings) { 
                    if(!data.settings.savedLineups) data.settings.savedLineups = []; 
                    if(!data.settings.savedOpponentLineups) data.settings.savedOpponentLineups = []; 
@@ -2176,6 +2537,7 @@
                   if(data.students) data.students.forEach(s => batch.set(getPublicDoc('students', s.id), s));
                   if(data.practices) data.practices.forEach(p => batch.set(getPublicDoc('practices', p.id), p));
                   if(data.matches) data.matches.forEach(m => batch.set(getPublicDoc('matches', m.id), m));
+                  if(data.analyses) data.analyses.forEach(a => batch.set(getPublicDoc('analyses', a.id), a));
                   if(data.memos) data.memos.forEach(m => batch.set(getPublicDoc('memos', m.id), m));
                   if(data.settings) batch.set(getPublicDoc('settings', 'app_settings'), data.settings);
                   await batch.commit(); showAlert("復元が完了しました。");
@@ -2194,12 +2556,13 @@
           students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, getStudentShortName, getStudentNumber, studentStats, sortConfig, sortBy, resetSort,
           downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
           showStudentDetailModal, selectedStudentForDetail, selectedStudentAttendanceHistory, openStudentDetail,
-          cancelPracticeEdit, cancelMatchEdit, cancelMemoEdit,
+          cancelPracticeEdit, cancelMatchEdit, cancelAnalysisEdit, cancelMemoEdit,
           getWeekday, autoSetHoliday, formatDate,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, 
           addTimePattern, removeTimePattern, addPracticeMenu, removePracticeMenu, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
           matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup, showLoadOpponentLineupModal, saveCurrentOpponentLineup, loadOpponentLineup, deleteSavedOpponentLineup,
           quickRecordState, matchTimer, toggleMatchTimer, resetTimer, formatTimer, setQuickRecordPlayer, addQuickRecordAction, resetQuickRecord, formatTimelineLine, matchHistory, undoMatchHistory,
+          analyses, sortedAnalyses, analysisForm, isEditingAnalysis, openAnalysisForm, editAnalysis, saveAnalysis, deleteAnalysis, currentTeamAFormationPositions, currentTeamBFormationPositions, isSelectingAnalysisPlayer, analysisTargetTeam, analysisTargetPosId, analysisPlayerForm, openAnalysisPlayerSelect, saveAnalysisPlayerForPosition, removeAnalysisPlayerForPosition, removeAnalysisPlayerForPositionFromList, addAnalysisPlayer, removeAnalysisPlayer,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
           settings, newMenuName, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON,
           availableStudentsForLineup, isSelectingSubForQuickRecord, subbingOutPlayerId, openSubSelection, confirmSubstitution,
