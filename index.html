@@ -41,6 +41,13 @@
   
   <div id="app" class="flex h-full w-full">
 
+    <!-- トースト通知 -->
+    <div v-if="toastState.isVisible" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[200] fade-in flex items-center px-5 py-3 rounded-xl shadow-2xl border"
+         :class="toastState.type === 'success' ? 'bg-emerald-900/95 border-emerald-500 text-emerald-400' : 'bg-blue-900/95 border-blue-500 text-blue-400'">
+      <i class="fa-solid mr-2 text-lg" :class="toastState.type === 'success' ? 'fa-circle-check' : 'fa-info-circle'"></i>
+      <span class="font-bold text-sm tracking-wide">{{ toastState.message }}</span>
+    </div>
+
     <!-- カスタムダイアログ (alert/confirmの代替) -->
     <div v-if="dialogState.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm fade-in p-4">
       <div class="glass-panel p-6 rounded-2xl shadow-2xl border border-slate-600 max-w-sm w-full text-center">
@@ -385,7 +392,7 @@
 
           <!-- Form Mode -->
           <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative">
-            <button @click="isEditingPractice = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <button type="button" @click="cancelPracticeEdit" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-2xl font-bold text-white mb-6">{{ practiceForm.id ? '練習記録の編集' : '新規練習記録' }}</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -518,7 +525,7 @@
               <button type="button" v-if="practiceForm.id" @click="deletePractice(practiceForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
               <div v-else></div>
               <div class="flex space-x-3">
-                <button type="button" @click="isEditingPractice = false" class="btn-secondary">キャンセル</button>
+                <button type="button" @click="cancelPracticeEdit" class="btn-secondary">キャンセル</button>
                 <button type="button" @click="savePractice" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
               </div>
             </div>
@@ -580,7 +587,7 @@
 
           <!-- Form Mode -->
           <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative">
-            <button type="button" @click="isEditingMatch = false; resetQuickRecord()" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <button type="button" @click="cancelMatchEdit" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-2xl font-bold text-white mb-6 border-b border-slate-700 pb-4"><span class="text-amber-500 mr-2">|</span>{{ matchForm.id ? '試合記録の編集' : '新規試合記録' }}</h2>
             
             <!-- Basic Info -->
@@ -624,6 +631,19 @@
                     <i class="fa-solid fa-rotate-right text-sm"></i>
                   </button>
                 </div>
+                <!-- 戻る（Undo）ボタン -->
+                <div class="ml-auto pl-4 border-l border-slate-700 hidden md:block">
+                  <button type="button" @click="undoMatchHistory" :disabled="matchHistory.length === 0" class="btn-secondary text-xs px-3 py-2 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-rotate-left"></i> 1つ戻す
+                  </button>
+                </div>
+              </div>
+              
+              <!-- スマホ用 戻る（Undo）ボタン -->
+              <div class="flex justify-end mb-4 md:hidden">
+                <button type="button" @click="undoMatchHistory" :disabled="matchHistory.length === 0" class="btn-secondary text-xs px-3 py-2 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <i class="fa-solid fa-rotate-left"></i> 1つ戻す
+                </button>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -947,7 +967,7 @@
               <button type="button" v-if="matchForm.id" @click="deleteMatch(matchForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
               <div v-else></div>
               <div class="flex space-x-3">
-                <button type="button" @click="isEditingMatch = false; resetQuickRecord()" class="btn-secondary">キャンセル</button>
+                <button type="button" @click="cancelMatchEdit" class="btn-secondary">キャンセル</button>
                 <button type="button" @click="saveMatch" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
               </div>
             </div>
@@ -1091,7 +1111,7 @@
 
           <!-- Form Mode -->
           <div v-else class="glass-panel rounded-2xl p-6 md:p-8 relative flex flex-col min-h-[85vh]">
-            <button @click="isEditingMemo = false" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            <button @click="cancelMemoEdit" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 p-2 rounded-full w-10 h-10 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="text-2xl font-bold text-white mb-6 shrink-0">{{ memoForm.id ? 'メモの編集' : '新規メモ' }}</h2>
             
             <div class="space-y-6 flex-1 flex flex-col">
@@ -1109,7 +1129,7 @@
               <button v-if="memoForm.id" @click="deleteMemo(memoForm.id)" class="text-red-400 hover:text-red-300 font-medium px-4 py-2 rounded hover:bg-red-400/10 transition"><i class="fa-solid fa-trash mr-2"></i>削除</button>
               <div v-else></div>
               <div class="flex space-x-3">
-                <button @click="isEditingMemo = false" class="btn-secondary">キャンセル</button>
+                <button @click="cancelMemoEdit" class="btn-secondary">キャンセル</button>
                 <button @click="saveMemo" class="btn-primary shadow-lg shadow-emerald-500/30 w-32"><i class="fa-solid fa-check mr-2"></i>保存</button>
               </div>
             </div>
@@ -1208,8 +1228,9 @@
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    const { createApp, ref, reactive, computed, onMounted } = Vue;
+    const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
 
+    // --- フォーメーション定義 ---
     const formations = {
       '4-4-2': [
         { id: 'fw1', name: 'FW', top: '15%', left: '35%' }, { id: 'fw2', name: 'FW', top: '15%', left: '65%' },
@@ -1273,6 +1294,18 @@
         const user = ref(null);
         let db = null;
         let appId = typeof __app_id !== 'undefined' ? __app_id : 'soccer-manager-final'; 
+
+        // --- STREAMING_CHUNK:Setting up Toast and Dialog Methods... ---
+        const toastState = reactive({ isVisible: false, message: '', type: 'success' });
+        let toastTimeout = null;
+        
+        const showToast = (message, type = 'success') => {
+          toastState.message = message;
+          toastState.type = type;
+          toastState.isVisible = true;
+          if(toastTimeout) clearTimeout(toastTimeout);
+          toastTimeout = setTimeout(() => { toastState.isVisible = false; }, 3000);
+        };
 
         const dialogState = reactive({
           isOpen: false,
@@ -1360,6 +1393,7 @@
         const isSelectingPlayer = ref(false);
         const selectingPositionId = ref(null);
         const showLoadLineupModal = ref(false);
+        const showLoadOpponentLineupModal = ref(false);
         const isSelectingOpponentPlayer = ref(false);
         const selectingOpponentPositionId = ref(null);
         const opponentPlayerForm = reactive({ number: '', name: '', features: '' });
@@ -1367,8 +1401,22 @@
         const showStudentDetailModal = ref(false);
         const selectedStudentForDetail = ref(null);
 
+        // --- STREAMING_CHUNK:Setting up Match Timer, History, and Quick Record... ---
         const quickRecordState = reactive({ player: null });
         const matchTimer = reactive({ isRunning: false, seconds: 0, period: '前半', intervalId: null });
+        const matchHistory = ref([]);
+
+        const pushMatchHistory = () => {
+          matchHistory.value.push(JSON.stringify(matchForm));
+          if(matchHistory.value.length > 20) matchHistory.value.shift(); // 履歴は最大20件
+        };
+
+        const undoMatchHistory = () => {
+          if(matchHistory.value.length === 0) return;
+          const prevState = JSON.parse(matchHistory.value.pop());
+          Object.assign(matchForm, prevState);
+          showToast("1つ前の操作を取り消しました", "info");
+        };
 
         const toggleMatchTimer = () => {
           if (matchTimer.isRunning) {
@@ -1438,6 +1486,8 @@
         };
 
         const confirmSubstitution = (inPlayerId) => {
+          pushMatchHistory(); // --- 変更前を保存 ---
+
           const timeStr = matchTimer.seconds > 0 ? `${getTimerMinuteStr()} ` : '';
           const outPlayerName = getStudentName(subbingOutPlayerId.value);
           const inPlayerName = getStudentName(inPlayerId);
@@ -1464,16 +1514,14 @@
           isSelectingSubForQuickRecord.value = false;
           subbingOutPlayerId.value = null;
           quickRecordState.player = null; 
+          
+          showToast(`${outPlayerName} と ${inPlayerName} の交代を記録しました`);
         };
 
         const addQuickRecordAction = (action) => {
           if (!quickRecordState.player) { showAlert("先に「1.選手を選択」から選手を選んでください"); return; }
           
-          if (!matchForm.quickRecordStats) matchForm.quickRecordStats = {};
-          if (!matchForm.quickRecordStats[quickRecordState.player]) {
-              matchForm.quickRecordStats[quickRecordState.player] = {};
-          }
-          const pStats = matchForm.quickRecordStats[quickRecordState.player];
+          pushMatchHistory(); // --- 変更前を保存 ---
 
           if (action === '得点') {
               if (quickRecordState.player === 'opponent') {
@@ -1481,9 +1529,6 @@
               } else {
                   matchForm.scoreUs++;
               }
-              pStats['枠内シュート'] = (pStats['枠内シュート'] || 0) + 1; // 得点時は枠内シュートも+1
-          } else {
-              pStats[action] = (pStats[action] || 0) + 1;
           }
           
           const timeStr = matchTimer.seconds > 0 ? `${getTimerMinuteStr()} ` : '';
@@ -1492,7 +1537,20 @@
           const record = `${timeStr}${playerName} (${action})`;
           matchForm.scorers = matchForm.scorers ? matchForm.scorers + '\n' + record : record;
 
+          if (!matchForm.quickRecordStats) matchForm.quickRecordStats = {};
+          if (!matchForm.quickRecordStats[quickRecordState.player]) {
+              matchForm.quickRecordStats[quickRecordState.player] = {};
+          }
+          const pStats = matchForm.quickRecordStats[quickRecordState.player];
+          pStats[action] = (pStats[action] || 0) + 1;
+          
+          if (action === '得点') {
+              pStats['枠内シュート'] = (pStats['枠内シュート'] || 0) + 1; // 得点時は枠内シュートも+1
+          }
+
           quickRecordState.player = null; 
+          
+          showToast(`${playerName}（${action}）を記録しました`);
         };
 
         const formatTimelineLine = (line) => {
@@ -1625,6 +1683,53 @@
         const sortedMatches = computed(() => [...matches.value].sort((a, b) => new Date(b.date) - new Date(a.date)));
         const sortedMemos = computed(() => [...memos.value].sort((a, b) => b.updatedAt - a.updatedAt));
 
+        // --- STREAMING_CHUNK:Configuring Draft Auto-save ---
+        watch(() => practiceForm, (newVal) => {
+          if (isEditingPractice.value) localStorage.setItem('smgr_draft_practice', JSON.stringify(newVal));
+        }, { deep: true });
+
+        watch(() => matchForm, (newVal) => {
+          if (isEditingMatch.value) localStorage.setItem('smgr_draft_match', JSON.stringify(newVal));
+        }, { deep: true });
+
+        watch(() => memoForm, (newVal) => {
+          if (isEditingMemo.value) localStorage.setItem('smgr_draft_memo', JSON.stringify(newVal));
+        }, { deep: true });
+
+        const checkDrafts = () => {
+          const pDraft = localStorage.getItem('smgr_draft_practice');
+          const mDraft = localStorage.getItem('smgr_draft_match');
+          const memoDraft = localStorage.getItem('smgr_draft_memo');
+          
+          if (pDraft || mDraft || memoDraft) {
+            setTimeout(async () => {
+              const res = await showConfirm("保存されていない入力途中のデータがあります。復元して再開しますか？\n（キャンセルすると破棄されます）");
+              if (res) {
+                if (mDraft) {
+                  Object.assign(matchForm, JSON.parse(mDraft));
+                  currentView.value = 'match';
+                  isEditingMatch.value = true;
+                  showToast("試合記録の入力途中のデータを復元しました", "info");
+                } else if (pDraft) {
+                  Object.assign(practiceForm, JSON.parse(pDraft));
+                  currentView.value = 'practice';
+                  isEditingPractice.value = true;
+                  showToast("練習記録の入力途中のデータを復元しました", "info");
+                } else if (memoDraft) {
+                  Object.assign(memoForm, JSON.parse(memoDraft));
+                  currentView.value = 'memo';
+                  isEditingMemo.value = true;
+                  showToast("メモの入力途中のデータを復元しました", "info");
+                }
+              } else {
+                localStorage.removeItem('smgr_draft_practice');
+                localStorage.removeItem('smgr_draft_match');
+                localStorage.removeItem('smgr_draft_memo');
+              }
+            }, 800);
+          }
+        };
+
         const currentFormationPositions = computed(() => (matchForm.formation === 'フリー' || !formations[matchForm.formation]) ? [] : formations[matchForm.formation]);
         const currentOpponentFormationPositions = computed(() => {
           if (matchForm.opponentFormation === 'フリー' || !formations[matchForm.opponentFormation]) return [];
@@ -1664,7 +1769,10 @@
 
             onAuthStateChanged(auth, (u) => {
               user.value = u; loadingAuth.value = false;
-              if (u) loadData();
+              if (u) {
+                loadData();
+                checkDrafts(); // 初期ロード完了時に下書きチェック
+              }
             });
           } catch (e) {
             loadingAuth.value = false; loadingData.value = false; customFirebaseEnabled.value = false; user.value = { uid: 'local-offline-user' };
@@ -1755,6 +1863,7 @@
           showStudentModal.value = false;
           await saveToCloud('students', dataToSave.id, dataToSave);
           loadingData.value = false;
+          showToast("生徒情報を保存しました");
         };
         const deleteStudent = async (id) => {
           const confirmed = await showConfirm("削除しますか？");
@@ -1796,6 +1905,10 @@
           selectedStudentForDetail.value = student;
           showStudentDetailModal.value = true;
         };
+
+        const cancelPracticeEdit = () => { isEditingPractice.value = false; localStorage.removeItem('smgr_draft_practice'); };
+        const cancelMatchEdit = () => { isEditingMatch.value = false; resetQuickRecord(); localStorage.removeItem('smgr_draft_match'); };
+        const cancelMemoEdit = () => { isEditingMemo.value = false; localStorage.removeItem('smgr_draft_memo'); };
 
         const openPracticeForm = () => {
           Object.assign(practiceForm, getEmptyPracticeForm()); autoSetHoliday();
@@ -1869,16 +1982,19 @@
           const isNew = !practiceForm.id; if (isNew) practiceForm.id = crypto.randomUUID();
           const dataToSave = JSON.parse(JSON.stringify(practiceForm));
           if (isNew) practices.value.push(dataToSave); else { const idx = practices.value.findIndex(p => p.id === dataToSave.id); if(idx !== -1) practices.value[idx] = dataToSave; }
-          isEditingPractice.value = false; await saveToCloud('practices', dataToSave.id, dataToSave);
+          cancelPracticeEdit(); 
+          await saveToCloud('practices', dataToSave.id, dataToSave);
+          showToast("練習記録を保存しました");
         };
         const deletePractice = async (id) => { 
           const confirmed = await showConfirm("削除しますか？");
-          if(confirmed) { practices.value = practices.value.filter(p => p.id !== id); isEditingPractice.value = false; await deleteFromCloud('practices', id); } 
+          if(confirmed) { practices.value = practices.value.filter(p => p.id !== id); cancelPracticeEdit(); await deleteFromCloud('practices', id); showToast("練習記録を削除しました", "info"); } 
         };
 
         const openMatchForm = () => { 
           Object.assign(matchForm, getEmptyMatchForm()); 
           resetQuickRecord();
+          matchHistory.value = [];
           isEditingMatch.value = true; 
         };
         const editMatch = (m) => {
@@ -1888,6 +2004,7 @@
           if(!matchForm.quickRecordStats) matchForm.quickRecordStats = {};
           if(!matchForm.scorers) matchForm.scorers = '';
           resetQuickRecord();
+          matchHistory.value = [];
           isEditingMatch.value = true;
         };
         const handleFormationChange = () => {};
@@ -1930,6 +2047,34 @@
           settings.savedLineups = settings.savedLineups.filter(lu => lu.id !== id); saveSettings(); 
         };
 
+        const saveCurrentOpponentLineup = async () => {
+          const defaultName = `保存した相手スタメン (${new Date().toLocaleTimeString().slice(0,5)})`;
+          const name = await showPrompt("相手チームフォーメーションの保存名を入力してください", defaultName);
+          if (name === null) return;
+          const finalName = name.trim() || defaultName;
+
+          if (!settings.savedOpponentLineups) settings.savedOpponentLineups = [];
+          settings.savedOpponentLineups.push({ id: crypto.randomUUID(), name: finalName, formation: matchForm.opponentFormation, lineup: JSON.parse(JSON.stringify(matchForm.opponentLineup)) });
+          saveSettings(); 
+          showToast("相手スタメンを保存しました！");
+        };
+
+        const loadOpponentLineup = async (lu) => {
+          const confirmed = await showConfirm(`「${lu.name}」を読み込みますか？`);
+          if (!confirmed) return;
+          matchForm.opponentFormation = lu.formation; 
+          matchForm.opponentLineup = JSON.parse(JSON.stringify(lu.lineup));
+          showLoadOpponentLineupModal.value = false;
+          showToast("相手スタメンを読み込みました");
+        };
+
+        const deleteSavedOpponentLineup = async (id) => { 
+          const confirmed = await showConfirm("削除しますか？");
+          if(!confirmed) return; 
+          settings.savedOpponentLineups = settings.savedOpponentLineups.filter(lu => lu.id !== id); saveSettings(); 
+          showToast("削除しました", "info");
+        };
+
         const openOpponentPlayerSelect = (posId) => {
           selectingOpponentPositionId.value = posId;
           const current = matchForm.opponentLineup[posId];
@@ -1941,47 +2086,18 @@
         const removeOpponentPlayerForPositionFromList = (posId) => { delete matchForm.opponentLineup[posId]; };
         const addOpponentPlayer = () => { matchForm.opponentPlayers.push({ number: '', name: '', features: '' }); };
         const removeOpponentPlayer = (index) => { matchForm.opponentPlayers.splice(index, 1); };
-
-        const showLoadOpponentLineupModal = ref(false);
-        const saveCurrentOpponentLineup = async () => {
-          const defaultName = `相手スタメン (${new Date().toLocaleTimeString().slice(0,5)})`;
-          const name = await showPrompt("相手フォーメーションの保存名を入力してください", defaultName);
-          if (name === null) return;
-          const finalName = name.trim() || defaultName;
-
-          if (!settings.savedOpponentLineups) settings.savedOpponentLineups = [];
-          settings.savedOpponentLineups.push({ 
-            id: crypto.randomUUID(), 
-            name: finalName, 
-            formation: matchForm.opponentFormation, 
-            lineup: JSON.parse(JSON.stringify(matchForm.opponentLineup)),
-            players: JSON.parse(JSON.stringify(matchForm.opponentPlayers || []))
-          });
-          saveSettings(); showAlert("相手フォーメーションを保存しました！");
-        };
-        const loadOpponentLineup = async (lu) => {
-          const confirmed = await showConfirm(`「${lu.name}」を読み込みますか？`);
-          if (!confirmed) return;
-          matchForm.opponentFormation = lu.formation; 
-          matchForm.opponentLineup = JSON.parse(JSON.stringify(lu.lineup));
-          matchForm.opponentPlayers = lu.players ? JSON.parse(JSON.stringify(lu.players)) : [];
-          showLoadOpponentLineupModal.value = false;
-        };
-        const deleteSavedOpponentLineup = async (id) => { 
-          const confirmed = await showConfirm("削除しますか？");
-          if(!confirmed) return; 
-          settings.savedOpponentLineups = settings.savedOpponentLineups.filter(lu => lu.id !== id); saveSettings(); 
-        };
-
+        
         const saveMatch = async () => {
           const isNew = !matchForm.id; if (isNew) matchForm.id = crypto.randomUUID();
           const dataToSave = JSON.parse(JSON.stringify(matchForm));
           if (isNew) matches.value.push(dataToSave); else { const idx = matches.value.findIndex(m => m.id === dataToSave.id); if(idx !== -1) matches.value[idx] = dataToSave; }
-          isEditingMatch.value = false; await saveToCloud('matches', dataToSave.id, dataToSave);
+          cancelMatchEdit(); 
+          await saveToCloud('matches', dataToSave.id, dataToSave);
+          showToast("試合記録を保存しました");
         };
         const deleteMatch = async (id) => { 
           const confirmed = await showConfirm("削除しますか？");
-          if(confirmed) { matches.value = matches.value.filter(m => m.id !== id); isEditingMatch.value = false; await deleteFromCloud('matches', id); } 
+          if(confirmed) { matches.value = matches.value.filter(m => m.id !== id); cancelMatchEdit(); await deleteFromCloud('matches', id); showToast("試合記録を削除しました", "info"); } 
         };
 
         const openMemoForm = () => { Object.assign(memoForm, getEmptyMemoForm()); isEditingMemo.value = true; };
@@ -1993,11 +2109,14 @@
           memoForm.updatedAt = Date.now();
           const dataToSave = JSON.parse(JSON.stringify(memoForm));
           if (isNew) memos.value.push(dataToSave); else { const idx = memos.value.findIndex(m => m.id === dataToSave.id); if(idx !== -1) memos.value[idx] = dataToSave; }
-          isEditingMemo.value = false; await saveToCloud('memos', dataToSave.id, dataToSave); loadingData.value = false;
+          cancelMemoEdit(); 
+          await saveToCloud('memos', dataToSave.id, dataToSave); 
+          loadingData.value = false;
+          showToast("メモを保存しました");
         };
         const deleteMemo = async (id) => { 
           const confirmed = await showConfirm("削除しますか？");
-          if(confirmed) { memos.value = memos.value.filter(m => m.id !== id); isEditingMemo.value = false; await deleteFromCloud('memos', id); } 
+          if(confirmed) { memos.value = memos.value.filter(m => m.id !== id); cancelMemoEdit(); await deleteFromCloud('memos', id); showToast("メモを削除しました", "info"); } 
         };
 
         const saveFirebaseConfig = () => {
@@ -2070,15 +2189,17 @@
 
         return {
           version, currentView, viewTitle, viewSubtitle, loadingAuth, loadingData, user,
+          toastState, showToast,
           dialogState, handleDialogConfirm, handleDialogCancel,
           students, activeStudents, obStudents, displayStudents, studentTab, getStudentName, getStudentShortName, getStudentNumber, studentStats, sortConfig, sortBy, resetSort,
           downloadCSVTemplate, importStudentsCSV, showStudentModal, studentForm, openAddStudentModal, editStudent, saveStudent, deleteStudent, updateAcademicYear,
           showStudentDetailModal, selectedStudentForDetail, selectedStudentAttendanceHistory, openStudentDetail,
+          cancelPracticeEdit, cancelMatchEdit, cancelMemoEdit,
           getWeekday, autoSetHoliday, formatDate,
           practices, sortedPractices, practiceForm, isEditingPractice, openPracticeForm, editPractice, savePractice, deletePractice, setAttendance, getAttendanceCount, editPracticeFromDashboard, 
           addTimePattern, removeTimePattern, addPracticeMenu, removePracticeMenu, isEditingPracticeMenus, newPracticeMenuInput, addMenuToPractice, removeMenuFromPractice, addSettingMenuInline, deleteSettingMenu,
           matches, sortedMatches, matchForm, isEditingMatch, openMatchForm, editMatch, saveMatch, deleteMatch, editMatchFromDashboard, fillActiveStudentsToMatch, removeStudentFromMatch, addOpponentPlayer, removeOpponentPlayer, currentFormationPositions, isSelectingPlayer, selectingPositionId, openPlayerSelect, selectPlayerForPosition, getPositionName, handleFormationChange, currentOpponentFormationPositions, isSelectingOpponentPlayer, selectingOpponentPositionId, opponentPlayerForm, openOpponentPlayerSelect, saveOpponentPlayerForPosition, removeOpponentPlayerForPosition, removeOpponentPlayerForPositionFromList, saveCurrentLineup, loadLineup, showLoadLineupModal, deleteSavedLineup, showLoadOpponentLineupModal, saveCurrentOpponentLineup, loadOpponentLineup, deleteSavedOpponentLineup,
-          quickRecordState, matchTimer, toggleMatchTimer, resetTimer, formatTimer, setQuickRecordPlayer, addQuickRecordAction, resetQuickRecord, formatTimelineLine,
+          quickRecordState, matchTimer, toggleMatchTimer, resetTimer, formatTimer, setQuickRecordPlayer, addQuickRecordAction, resetQuickRecord, formatTimelineLine, matchHistory, undoMatchHistory,
           memos, sortedMemos, memoForm, isEditingMemo, openMemoForm, editMemo, saveMemo, deleteMemo,
           settings, newMenuName, saveSettings, customFirebaseEnabled, firebaseConfigInput, saveFirebaseConfig, clearFirebaseConfig, exportJSON, importJSON,
           availableStudentsForLineup, isSelectingSubForQuickRecord, subbingOutPlayerId, openSubSelection, confirmSubstitution,
